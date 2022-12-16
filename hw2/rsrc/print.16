@@ -1,0 +1,39 @@
+;
+; print a file transmitted over phone
+;
+
+.incld	defs.16
+.	=	2300
+
+print:	mov	buf, r1
+	jsr	r5, call
+	pinit
+pr.1:	jsr	r5, call
+	ack
+pr.2:	jsr	r5, call
+	gchr1
+	cmp	12, r0
+	beq	pr.2
+	jsr	r5, call
+	putbuf
+	cmp	15, r0
+	bneq	pr.2
+pr.3:	jsr	r5, call
+	size
+	tst	r0
+	bze	pr.1
+	jsr	r5, call
+	getbuf
+	jsr	r5, call
+	pputc
+	b	pr.3
+ack:	mov	15, r0
+	jsr	r5, call
+	pchr1
+	jmp	ret
+buf:	buf+3
+	buf+3
+	200
+	.blk	200
+.incld	buf.16
+.incld	ptr.16

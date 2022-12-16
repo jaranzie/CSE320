@@ -1,0 +1,48 @@
+.	=	2200
+start:	mov	buf,r2
+	jsr	r5,call
+	oconv
+	mov	r0,r1
+	mov	r2,r0
+	jsr	r5,call
+	putls
+	mov	r1,r0
+	jmp	ret0
+
+oconv:	mov	r1,r3
+	mov	r0,r1
+	mov	r2,r4
+	clr	r0
+	mov	r0,@sp+
+pn.1:	clr	r0
+	mov	r3,r2
+	jsr	r5,call
+	div
+	add	'0,r0
+	cmp	'9,r0
+	ble	pn.2
+	add	'a-'9-1,r0
+pn.2:	mov	r0,@sp+
+	tst	r1
+	bneq	pn.1
+	clr	r0
+pn.3:	mov	@-sp,r1
+	tst	r1
+	beq	pn.4
+	inc	r0
+	mov	r1,@r4+
+	b	pn.3
+pn.4:	mov	0,r1
+	mov	r1,@r4+
+	jmp	ret0
+
+putls:	mov	r0,r4
+pl.1:	mov	@r4+,r0
+	tst	r0
+	beq	pl.2
+	jsr	r5,call
+	pchr
+	b	pl.1
+pl.2:	jmp	ret
+
+buf:	.blk	20

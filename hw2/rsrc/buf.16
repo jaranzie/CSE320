@@ -1,0 +1,50 @@
+;
+; Circular buffer routines
+;
+;	buf:	startptr
+;		endptr
+;		size
+;		.blk	size
+;
+; address of buffer in r1
+
+putbuf:	mov	r1, r4
+	mov	@r4+, r1
+	mov	@r4+, r5
+	mov	@r4+, r2
+	mov	r0, @r5+	; store data
+	mov	r5, r0
+	sub	r4, r0
+	cmp	r2, r0
+	bneq	pu.1
+	mov	r4, r5
+pu.1:	cmp	r1, r5
+	beq	ret
+	sub	2, r4
+	mov	r5, @r4+
+	jmp	ret
+
+getbuf:	mov	r1, r4
+	mov	@r4+, r5
+	mov	@r4+, r1
+	mov	@r4+, r2
+	cmp	r1, r5
+	beq	ret0
+	mov	@r5+, r0
+	mov	r5, r3
+	sub	r4, r3
+	cmp	r2, r3
+	bneq	ge.1
+	mov	r4, r5
+ge.1:	sub	3, r4
+	mov	r5, @r4+
+	jmp	ret0
+
+size:	mov	r1, r4
+	mov	@r4+, r1
+	mov	@r4+, r0
+	mov	@r4+, r2
+	sub	r1, r0
+	bge	ret0
+	add	r2, r0
+	b	ret0

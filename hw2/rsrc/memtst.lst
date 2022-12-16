@@ -1,0 +1,94 @@
+000000		.incld	defs.16
+		;	Locations of useful monitor routines
+		;
+		getchr	=	512
+		newln	=	1105
+		space	=	1115
+		rcall	=	1125
+		call	=	1130
+		ret4	=	1140
+		ret3	=	1144
+		ret2	=	1151
+		ret1	=	1156
+		ret0	=	1163
+		ret	=	1167
+		puts	=	1176
+		putoct	=	1226
+		div	=	1416
+		mul	=	1533
+		gchr0	=	1635
+		gchr1	=	1643
+		pchr0	=	1600
+		pchr1	=	1606
+		init0	=	1566
+		init1	=	1573
+		ischr0	=	1622
+		ischr1	=	1626
+		; quick memory test program
+		;
+			. = 2200
+002200	001270		mov	130000,r0		;low lim
+	130000	
+002202	001271		mov	170000,r1		;high lim
+	170000	
+002204	000204	write:	mov	r0,r4
+002205	000541	wr.1:	cmp	r4,r1
+002206	001004		beq	read
+	000003	
+002210	001144		mov	r4,@r4+
+002211	001040		b	wr.1
+	000005	
+002213	000204	read:	mov	r0,r4
+002214	000541	re.1:	cmp	r4,r1
+002215	001044		beq	write
+	000012	
+002217	001242		mov	@r4+, r2
+002220	000524		cmp	r2, r4
+002221	001044		beq	re.1
+	000006	
+002223	001160		mov	r0, @sp+
+002224	000240		mov	r4, r0
+002225	000004		jsr	r5, call
+	000400	
+	001130	
+002230	001226		putoct
+002231	001270		mov	spmes, r0
+	002257	
+002233	000004		jsr	r5, call
+	000400	
+	001130	
+002236	001176		puts
+002237	000220		mov	r2, r0
+002240	000004		jsr	r5, call
+	000400	
+	001130	
+002243	001226		putoct
+002244	001270		mov	nlmes, r0
+	002255	
+002246	000004		jsr	r5, call
+	000400	
+	001130	
+002251	001176		puts
+002252	001260		mov	@-sp, r0
+002253	001040		b	re.1
+	000040	
+002255	006412	nlmes:	.byte	15, 12, 0
+002256	000000		.wordb
+002257	020000	spmes:	.asciz	/ /
+002260			.wordb
+		end	= .
+		
+
+Symbol Table
+
+call     =	001130	div      =	001416	end      =	002260	
+gchr0    =	001635	gchr1    =	001643	getchr   =	000512	
+init0    =	001566	init1    =	001573	ischr0   =	001622	
+ischr1   =	001626	mul      =	001533	newln    =	001105	
+nlmes    =	002255	pchr0    =	001600	pchr1    =	001606	
+putoct   =	001226	puts     =	001176	rcall    =	001125	
+re.1     =	002214	read     =	002213	ret      =	001167	
+ret0     =	001163	ret1     =	001156	ret2     =	001151	
+ret3     =	001144	ret4     =	001140	space    =	001115	
+spmes    =	002257	wr.1     =	002205	write    =	002204	
+

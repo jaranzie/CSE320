@@ -1,0 +1,104 @@
+call	=	170756
+ret	=	171013
+
+VMEM	=	130000
+
+.	=	160000
+
+;
+; place a dot at row r0, column r1
+;
+
+plot:	sll	2, r0
+	sll	2, r0
+	sll	1, r0			; mult r0 by 32.
+	add	VMEM, r0		; address of row
+	mov	r1, r2
+	and	17, r2
+	sar	2, r1
+	sar	2, r1			; divide r1 by 16.
+	add	r0, r1			; address of word
+	add	msktab, r2		; get bit mask
+	mov	@r1, r3			; word to change
+	xor	@r2, r3
+	mov	r3, @r1			; change it
+	b	ret
+
+msktab:	.word	000001, 000002, 000004, 000010, 000020, 000040
+	.word	000100, 000200, 000400, 001000, 002000, 004000
+	.word	010000, 020000, 040000, 100000
+
+;
+; draw a line from row r0, column r1 to row r2, column r3
+;
+
+line:	mov	r2, @x1
+	mov	r3, @y1
+	mov	1, r4
+	mov	r4, r5
+	sub	r0, r2
+	bge	lin.1
+	neg	r2
+	neg	r4
+lin.1:	mov	r2, @adx
+	mov	r4, @sdx
+	sub	r1, r3
+	bge	lin.2
+	neg	r3
+	neg	r5
+lin.2:	mov	r3, @ady
+	mov	r5, @sdy
+	cmp	r2, r3
+	bge	yalg
+	clr	r2
+xalg:	jsr	r5, call
+	plot
+	cmp	@x1, r0
+	beq	ret
+	add	@sdx, r0
+	sub	@ady, r2
+	mov	r2, r3
+	mov	r2, r4
+	bge	xal.1
+	neg	r2
+xal.1:	add	@adx, r3
+	mov	r3, r5
+	bge	xal.2
+	neg	r3
+xal.2:	cmp	r2, r3
+	bge	xal.3
+	mov	r5, r2
+	add	@sdy, r1
+	b	xalg
+xal.3:	mov	r4, r2
+	b	xalg
+
+yalg:	clr	r2
+yal.4:	jsr	r5, call
+	plot
+	cmp	@y1, r1
+	beq	ret
+	add	@sdy, r1
+	add	@adx, r2
+	mov	r2, r3
+	mov	r2, r4
+	bge	yal.1
+	neg	r2
+yal.1:	sub	@ady, r3
+	mov	r3, r5
+	bge	yal.2
+	neg	r3
+yal.2:	cmp	r2, r3
+	bge	yal.3
+	mov	r5, r2
+	add	@sdx, r0
+	b	yal.4
+yal.3:	mov	r4, r2
+	b	yal.4
+
+adx:	.word	0
+ady:	.word	0
+sdx:	.word	0
+sdy:	.word	0
+x1:	.word	0
+y1:	.word	0

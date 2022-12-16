@@ -1,0 +1,36 @@
+.	=	2200
+.incld	defs.16
+SPACE	=	101
+RETURN	=	41
+	clr	r1
+	mov	10,r2
+loop2:	mov	r1,r0
+	sll	1,r0
+	bnze	l1
+	mov	SPACE,r0
+l1:	jsr	r5,call
+	pputc
+	jsr	r5,call
+	spaces
+l2:	inc	r1
+	dec	r2
+	bnze	l3
+	mov	RETURN,r0
+	jsr	r5,call
+	pputc
+	mov	10,r2
+l3:	cmp	377,r1
+	ble	loop2
+	jmp	ret
+pputc:	mov	@177760,r1
+	and	1,r1
+	bze	pputc
+	mov	r0,@177761
+	jmp	ret
+spaces:	mov	5,r1
+	mov	SPACE,r0
+sp.1:	jsr	r5,call
+	pputc
+	dec	r1
+	bnze	sp.1
+	jmp	ret

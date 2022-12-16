@@ -1,0 +1,37 @@
+.incld	defs.16
+; quick memory test program
+;
+	. = 2200
+	mov	130000,r0		;low lim
+	mov	170000,r1		;high lim
+write:	mov	r0,r4
+wr.1:	cmp	r4,r1
+	beq	read
+	mov	r4,@r4+
+	b	wr.1
+read:	mov	r0,r4
+re.1:	cmp	r4,r1
+	beq	write
+	mov	@r4+, r2
+	cmp	r2, r4
+	beq	re.1
+	mov	r0, @sp+
+	mov	r4, r0
+	jsr	r5, call
+	putoct
+	mov	spmes, r0
+	jsr	r5, call
+	puts
+	mov	r2, r0
+	jsr	r5, call
+	putoct
+	mov	nlmes, r0
+	jsr	r5, call
+	puts
+	mov	@-sp, r0
+	b	re.1
+nlmes:	.byte	15, 12, 0
+	.wordb
+spmes:	.asciz	/ /
+	.wordb
+end	= .

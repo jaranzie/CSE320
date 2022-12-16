@@ -1,0 +1,89 @@
+call	=	170756
+ret	=	171013
+ret0	=	171010
+
+SIVEC0	=	3004
+SOVEC0	=	3010
+SIVEC1	=	3014
+SOVEC1	=	3020
+LDADDR	=	2300
+
+; Interrupt Vectors
+
+.	=	SIVEC0
+
+	mov	r7, @sp+
+	b	intr
+
+.	=	SOVEC0
+
+	mov	r7, @sp+
+	b	intr
+
+.	=	SIVEC1
+
+	mov	r7, @sp+
+	b	intr
+
+.	=	SOVEC1
+
+	mov	r7, @sp+
+	b	intr
+
+.	=	LDADDR
+
+	b	start
+
+intr:	mov	r1, @sp+
+	gswd	r1
+	mov	r1, @sp+
+	dis
+	tci
+	clrc
+	mov	r2, @sp+
+	mov	sp, r1
+	sub	4, r1
+	mov	@r1, r2			; get back old pc
+	mov	r0, @r1			; clobber the intru vec info
+	sub	SIVEC0 + 1, r2
+	sar	2, r2
+	add	itable, r2
+	mov	r3, @sp+
+	mov	r4, @sp+
+	mov	r5, @sp+
+	mov	@r2, pc			; branch to service routine
+
+iret:	mov	@-sp, r5
+	mov	@-sp, r4
+	mov	@-sp, r3
+	mov	@-sp, r2
+	mov	@-sp, r1
+	rswd	r1
+	mov	@-sp, r1
+	mov	@-sp, r0
+	eis
+	mov	@-sp, pc
+
+itable:	siint0
+	soint0
+	siint1
+	soint1
+
+siint0:	b	iret
+soint0:	mov	177762, r1
+	mov	@r1, r0
+	and	1, r0
+	bze	iret
+	mov	177763, r1
+	mov	'A, r0
+	mov	r0, @r1
+	b	iret
+siint1:	b	iret
+
+soint1:	b	iret
+
+start:	mov	557, r0
+	mov	177762, r1
+	mov	r0, @r1
+	eis
+loop:	b	loop

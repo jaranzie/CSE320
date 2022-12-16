@@ -1,0 +1,14 @@
+srand:	mov	r0,@seed
+	jmp	ret
+
+rand:	mov	@seed,r1
+	mov	13077.,r2
+	jsr	r5,call
+	mul
+	add	6925.,r1
+	mov	r1,@seed
+	and	77777,r1
+	mov	r1,r0
+	jmp	ret0
+
+seed:	1

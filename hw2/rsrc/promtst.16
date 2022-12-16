@@ -1,0 +1,47 @@
+.	=	2200
+
+.incld	defs.16
+
+PDREG	=	177766
+PAREG	=	177767
+
+CSEL	=	400
+
+start:	clr	r2
+	clr	r0
+	mov	4,r1
+	jsr	r5, call
+	newln
+	jsr	r5, call
+	putoct
+	jsr	r5, call
+	space
+st.1:	mov	r2, r0
+	inc	r2
+	jsr	r5, call
+	read
+	jsr	r5, call
+	putoct
+	dec	r1
+	bnze	st.2
+	mov	4, r1
+	jsr	r5, call
+	newln
+	mov	r2, r0
+	jsr	r5, call
+	putoct
+st.2:	jsr	r5, call
+	space
+	cmp	2000, r2
+	bneq	st.1
+	jmp	ret
+
+read:	mov	PAREG, r1
+	mov	PDREG, r2
+	mov	r0, @r1
+	mov	CSEL, r0
+	mov	r0, @r2
+	mov	@r1, r0
+	clr	r1
+	mov	r1, @r2
+	jmp	ret0

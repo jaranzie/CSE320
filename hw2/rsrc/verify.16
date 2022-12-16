@@ -1,0 +1,101 @@
+.	=	2300
+putoct	=	171107
+newln	=	170732
+ret0	=	171010
+puts	=	171057
+rputc	=	171133
+error	=	170407
+ret	=	171013
+eret	=	171047
+vcrdsp	=	172147
+call	=	170756
+ischr0	=	171531
+gchr0	=	171544
+pchr1	=	171515
+ischr1	=	171535
+gchr1	=	171552
+pchr0	=	171507
+DC1	=	21	;special signal
+
+term:	jsr	r5, call
+	vcrdsp
+	jsr	r5, call	; kbd?
+	ischr0
+	tst	r0
+	bze	te.1
+	jsr	r5, call
+	gchr0
+	jsr	r5, call	; send it
+	pchr1
+te.1:	jsr	r5, call	; modem?
+	ischr1
+	tst	r0
+	bze	term
+	jsr	r5, call
+	gchr1
+	and	177, r0
+	cmp	DC1, r0		; special?
+	bneq	te.2
+	mov	ldmes, r0
+	jsr	r5, call
+	puts
+	jsr	r5, call
+	load
+	mov	dnmes, r0
+	b	puts
+te.2:	jsr	r5, call
+	rputc
+	b	term
+
+load:	mov	2,r2	;loop counter
+lo.1:	mov	r3,r4
+	jsr	r5, call	; get word
+	gwrd
+	bc	error
+	mov	r0,r3
+	dec	r2	;done?
+	bnze	lo.1	;no
+	tst	r3
+	bze	ret
+	clr	r1	;checksum accum
+	add	r3,r1
+	add	r4,r1
+lo.2:	jsr	r5, call	; get word
+	gwrd
+	bc	error
+	add	r0,r1	;add to checksum
+	dec	r3	; done?
+	bze	lo.3	; yes
+	cmp	@r4+, r0	; check data
+	beq	lo.2		; OK, branch back for more
+	mov	r4, r0
+	dec	r0
+	jsr	r5, call
+	putoct
+	jsr	r5, call
+	newln
+	b	lo.2	;branch back for more
+lo.3:	tst	r1	;examine checksum
+	b	load	;its OK
+	b	error
+
+gwrd:	jsr	r5, call
+	gchr1
+	bc	eret
+	mov	r0, r2
+	swap	1, r2
+	jsr	r5, call
+	gchr1
+	bc	eret
+	add	r2, r0
+	jmp	ret0
+
+ldmes:	.ascii	/LD/
+ldmes:	.ascii	/VE/
+	.byte	15,12,0
+	.wordb
+dnmes:	.ascii	/DN/
+	.byte	15,12,0
+	.wordb
+nlmes:	.byte	15,12,0
+	.wordb

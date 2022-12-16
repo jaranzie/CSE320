@@ -1,0 +1,184 @@
+.incld defs.16
+;
+;elaborate memory test program
+;
+
+BOTTOM	=	2000
+.	=	2200
+
+st.1:	mov	llmes,r0	;lo lim
+	jsr	r5, call
+	puts
+	jsr	r5, call
+	getoct
+	cmp	end,r0	;too low
+	bllt	st.1		;get again
+	mov	r0,@lower
+	mov	hlmes,r0	;hi lim
+	jsr	r5, call
+	puts
+	jsr	r5, call
+	getoct
+	dec	r0
+	cmp	@lower,r0	;l < u?
+	bllt	st.1		;get again
+	inc	r0
+	mov	r0,@higher
+	mov	llmes,r0
+	jsr	r5, call
+	puts
+	mov	@lower,r0
+	jsr	r5, call
+	putoct
+	mov	hlmes,r0
+	jsr	r5, call
+	puts
+	mov	@higher,r0
+	jsr	r5, call
+	putoct
+	mov	nlmes,r0
+	jsr	r5, call
+	puts
+test:	mov	stames,r0
+	jsr	r5, call
+	puts
+	clr	r3		;background pattern
+	mov	@higher,r0	;high lim
+pat:	clr	r5
+	mov	r5, @errflg
+	mov	@lower,r4	;write background
+pa.1:	cmp	r4,r0
+	beq	pa.2
+	mov	r3,@r4+
+	b	pa.1
+pa.2:	mov	1,r2		;bits
+	tst	r3
+	beq	bits
+	com	r2
+bits:	mov	@lower,r1	;current loc
+loc:	mov	r2,@r1		;change one wd
+	mov	@lower,r4	;check rest
+lo.2:	cmp	r4, r0
+	beq	lo.3
+	cmp	r4,r1		;current loc?
+	beq	lo.4		;yes, diff data
+	mov	@r4+,r5
+	cmp	r5,r3		;check it
+	beq	lo.2		;OK
+	dec	r4		;bad, print
+	mov	r4,@argbuf
+	mov	r3,@argbuf+1
+	mov	r5,@argbuf+2
+	mov	r1, @argbuf+3
+	b	lo.5
+lo.4:	mov	@r4+,r5
+	cmp	r5,r2	;chk against bits
+	beq	lo.2	;OK
+	dec	r4	;bad, print
+	mov	r4,@argbuf
+	mov	r2,@argbuf+1
+	mov	r5,@argbuf+2
+	mov	r1, @argbuf+3
+lo.5:	inc	r4		;rest r4
+	jsr	r5, call
+	error
+	mov	@argbuf, r4
+	inc	r4
+	b	lo.2
+lo.3:	mov	@errflg, r5
+	tst	r5
+	bnze	pat
+	mov	r3,@r1		;replace current loc
+	inc	r1		;next loc
+	cmp	r1,r0		;done?
+	bneq	loc		;no
+	clrc			;clear carry
+	tst	r3		;ones or zeros?
+	bneq	lo.6		;zeros
+	rlc	1,r2
+	bnc	bits		;not end
+	b	lo.7
+lo.6:	setc			;fix carry
+	rlc	1,r2		;rotate bits
+	bc	bits		;opposite check
+lo.7:	tst	r3
+	bneq	test		;new pass
+	dec	r3
+	b	pat
+getoct:	clr	r1
+go.1:	jsr	r5, call
+	gchr0
+	and	177,r0
+	cmp	15,r0		;newline
+	bneq	go.2
+	jsr	r5, call
+	pchr0
+	mov	12,r0
+	jsr	r5, call
+	pchr0
+	mov	r1,r0
+	jmp	ret0
+go.2:	sll	1,r1
+	sll	2,r1
+	mov	r0,r2
+	jsr	r5, call
+	pchr0
+	sub	60,r2
+	add	r2,r1
+	b	go.1
+error:	mov	1, r0
+	mov	r0, @errflg
+	mov	admes, r0
+	jsr	r5,call
+	puts
+	mov	argbuf,r4
+	mov	@r4+,r0
+	jsr	r5, call
+	putoct
+	mov	gdmes,r0
+	jsr	r5, call
+	puts
+	mov	@r4+,r0
+	jsr	r5, call
+	putoct
+	mov	bdmes,r0
+	jsr	r5, call
+	puts
+	mov	@r4+,r0
+	jsr	r5, call
+	putoct
+	mov	cames, r0
+	jsr	r5, call
+	puts
+	mov	@r4+, r0
+	jsr	r5, call
+	putoct
+	mov	nlmes,r0
+	jsr	r5, call
+	puts
+	jmp	ret
+
+llmes:	.asciz	/lo lim =/
+	.wordb
+hlmes:	.asciz	/hi lim =/
+	.wordb
+nlmes:	.byte	15,12,0
+	.wordb
+stames:	.asciz	/*/
+	.wordb
+admes:	.asciz	/ad =/
+	.wordb
+gdmes:	.asciz	/gd =/
+	.wordb
+bdmes:	.asciz	/bd =/
+	.wordb
+cames:	.asciz	/ca =/
+	.wordb
+higher:	0
+lower:	0
+argbuf:	0
+	0
+	0
+	0
+errflg:	0
+end:

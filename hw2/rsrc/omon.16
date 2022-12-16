@@ -1,0 +1,545 @@
+IMPURE	=	2000
+USTACK	=	2100
+PURE	=	200
+
+.	=	0
+	b	start		; jump to main program
+
+.	=	PURE
+
+start:	mov	r5,@reg5
+	mov	regsav,r5
+	mov	r0,@r5+
+	gswd	r0
+	mov	r0,@status
+	mov	r1,@r5+
+	mov	r2,@r5+
+	mov	r3,@r5+
+	mov	r4,@r5+
+	inc	r5
+	mov	@-sp,r0
+	mov	r6,@r5+
+	mov	r0,@r5+
+	mov	BOTTOM,sp
+	tci
+	setc
+	mov	stflg,r1
+	mov	@r1,r2
+	tst	r2
+	bneq	st.1
+	jsr	r5,call
+	putoct
+st.1:	clr	r0
+	mov	r0,@r1
+	jsr	r5,call
+	newln
+	mov	'@,r0
+	mov	r0,@prompt
+
+comd:	mov	@prompt,r0
+	tst	r0
+	beq	co.17
+	jsr	r5,call
+	pchr
+co.17:	mov	'@,r0
+	mov	r0,@prompt
+	mov	arg1,r4
+co.1:	jsr	r5,call
+	getarg
+	mov	r0,@r4+
+	tst	r0
+	beq	co.2
+	mov	r1,@r4+
+co.2:	cmp	';,r2
+	bneq	co.3
+	cmp	arg1+3,r4
+	blge	error
+	b	co.1
+co.3:	clr	r1
+	mov	r1,@r4+
+	mov	error,r4
+	cmp	'@,r2
+	bneq	co.4
+	mov	atloc,r4
+co.4:	cmp	'=,r2
+	bneq	co.5
+	mov	prloc,r4
+co.5:	cmp	15,r2
+	bneq	co.6
+	mov	wloc,r4
+co.6:	cmp	12,r2
+	bneq	co.7
+	mov	nxtloc,r4
+co.7:	cmp	'g,r2
+	bneq	co.8
+	mov	go,r4
+co.8:	cmp	'p,r2
+	bneq	co.9
+	mov	cont,r4
+co.9:	cmp	'^,r2
+	bneq	co.11
+	mov	preloc,r4
+co.11:	cmp	'/,r2
+	bneq	co.16
+	mov	print,r4
+co.16:	jsr	r5,rcall
+	b	comd
+
+getarg:	clr	r4
+	clr	r1
+	clr	r3
+	jsr	r5,call
+	getchr
+	cmp	'r,r0
+	bneq	ga.1
+	inc	r1
+	jsr	r5,call
+	getchr
+ga.1:	mov	r0,r2
+	cmp	'0,r0
+	blt	ga.3
+	cmp	'7,r0
+	bgt	ga.3
+	inc	r4
+	sub	'0,r0
+	sll	2,r3
+	sll	1,r3
+	add	r0,r3
+	jsr	r5,call
+	getchr
+	b	ga.1
+ga.3:	tst	r4
+	bneq	ga.4
+	clr	r0
+	jmp	ret2
+ga.4:	tst	r1
+	beq	ga.9
+	add	regsav,r3
+ga.9:	mov	r3,r1
+	com	r0
+	jmp	ret2
+
+getchr:	jsr	r5,call
+	gchr
+	mov	177,r2
+	and	r2,r0
+	mov	r0,r1
+	cmp	15,r0
+	beq	ge.1
+	cmp	12,r0
+	beq	ge.1
+	cmp	r2,r0
+	bneq	ge.2
+	jmp	ret0
+ge.1:	mov	15,r0
+	jsr	r5,call
+	pchr
+	mov	12,r0
+ge.2:	jsr	r5,call
+	pchr
+	mov	r1,r0
+	jmp	ret0
+
+error:	mov	errmes,r0
+	jsr	r5,call
+	puts
+	mov	BOTTOM,sp
+	b	comd
+
+wloc:	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	ret
+	mov	@r4+,r0
+	mov	@cloc,r1
+	mov	r0,@r1
+	jmp	ret
+
+nxtloc:	mov	1,r1
+	b	nl.1
+preloc:	mov	-1,r1
+	jsr	r5,call
+	newln
+nl.1:	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	bneq	nl.2
+	mov	r1,r2
+	b	nl.3
+nl.2:	mov	@r4+,r2
+	tst	r1
+	bpl	nl.3
+	neg	r2
+nl.3:	mov	@cloc,r0
+	add	r2,r0
+	mov	r0,@cloc
+	mov	arg1,r4
+	clr	r0
+	mov	r0,@r4+
+	mov	r0,@r4+
+	jmp	print
+
+atloc:	mov	@cloc,r1
+	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	at.1
+	mov	@r4+,r1
+at.1:	mov	@r1,r0
+	mov	r0,@cloc
+	jsr	r5,call
+	newln
+	mov	arg1,r4
+	clr	r0
+	mov	r0,@r4+
+	mov	r0,@r4+
+	jmp	print
+
+prloc:	mov	@cloc,r0
+	jsr	r5,call
+	putoct
+	jsr	r5,call
+	space
+	clr	r0
+	mov	r0,@prompt
+	jmp	ret
+
+go:	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	error
+	mov	USTACK,sp
+	mov	regsav,r5
+	mov	@r5+,r0
+	mov	@r5+,r1
+	mov	@r5+,r2
+	mov	@r5+,r3
+	mov	@r4+,r4
+	jsr	r5,rcall
+	mov	1,r5
+	mov	r5,@stflg
+	b	start
+
+cont:	mov	regsav,r5
+	mov	@status,r0
+	rswd	r0
+	mov	@r5+,r0
+	mov	@r5+,r1
+	mov	@r5+,r2
+	mov	@r5+,r3
+	mov	@r5+,r4
+	mov	@r5+,r6
+	mov	@r5+,r6
+	mov	@reg5,r5
+	mov	@rtrna,pc
+
+print:	mov	@cloc,r2
+	mov	1,r3
+	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	pr.1
+	mov	@r4+,r2
+pr.1:	mov	@r4+,r0
+	tst	r0
+	beq	pr.2
+	mov	@r4+,r3
+pr.2:	cmp	1,r3
+	bneq	pr.5
+	mov	@r2,r0
+	jsr	r5,call
+	putoct
+	jsr	r5,call
+	space
+	mov	r2,@cloc
+	clr	r0
+	mov	r0,@prompt
+	jmp	ret
+pr.5:	mov	4,r4
+	jsr	r5,call
+	newln
+	mov	r2,r0
+	jsr	r5,call
+	putoct
+	mov	colmes,r0
+	jsr	r5,call
+	puts
+pr.4:	mov	@r2,r0
+	jsr	r5,call
+	putoct
+	jsr	r5,call
+	space
+	dec	r3
+	beq	pr.3
+	inc	r2
+	dec	r4
+	beq	pr.5
+	b	pr.4
+pr.3:	mov	r2,@cloc
+	jsr	r5,call
+	newln
+	jmp	ret
+
+newln:	mov	nlmes,r0
+	jsr	r5,call
+	puts
+	jmp	ret
+
+space:	mov	spmes,r0
+	jsr	r5,call
+	puts
+	jmp	ret
+
+rcall:	mov	r4,@sp+
+	b	ca.1
+call:	mov	r4,@sp+
+	mov	@r5+,r4
+ca.1:	mov	r3,@sp+
+	mov	r2,@sp+
+	mov	r1,@sp+
+	mov	r0,@sp+
+	mov	r5,@sp+
+	jmp	r4
+
+ret4:	mov	@-sp,r5
+	sub	5,sp
+	jmp	r5
+ret3:	mov	@-sp,r5
+	sub	4,sp
+	b	re.3
+ret2:	mov	@-sp,r5
+	sub	3,sp
+	b	re.2
+ret1:	mov	@-sp,r5
+	sub	2,sp
+	b	re.1
+ret0:	mov	@-sp,r5
+	dec	sp
+	b	re.0
+ret:	mov	@-sp,r5
+	mov	@-sp,r0
+re.0:	mov	@-sp,r1
+re.1:	mov	@-sp,r2
+re.2:	mov	@-sp,r3
+re.3:	mov	@-sp,r4
+re.4:	jmp	r5
+
+
+;
+;get character in bit-serial form
+;
+TIMOUT	=	333.
+gchr:
+gc.1:	bext	0,gc.1	;wait for start bit
+	mov	TIMOUT/2,r0	;advance to center
+gc.5:	dec	r0
+	bnze	gc.5
+	clr	r1	;char buffer
+	mov	11,r2	;no of bits to go
+gc.2:	mov	TIMOUT,r0	;advance
+gc.6:	dec	r0
+	bnze	gc.6
+	dec	r2	;last bit?
+	bze	gc.4	;yes, throw away
+	slr	1,r1	;make room
+	bext	0,gc.3	;one or zero?
+	b	gc.2	;zero, leave alone
+gc.3:	add	200,r1	;put a one in
+	b	gc.2	;back for more
+gc.4:	mov	r1,r0	;store result
+	jmp	ret0
+
+TTOUT	=	177000
+;
+;put out a character in bit-serial form
+;
+pchr:	com	r0
+	mov	1,r1
+	mov	r1,@TTOUT	;start bit
+	mov	12,r2	;no of bits
+pu.1:	mov	TIMOUT,r1
+pu.2:	dec	r1
+	bnze	pu.2
+	dec	r2
+	bze	pu.3
+	cmp	1,r2
+	bneq	pu.4
+	clr	r0
+pu.4:	mov	r0,@TTOUT
+	slr	1,r0
+	b	pu.1
+pu.3:	jmp	ret
+puts:	mov	r0,r4
+	clr	r1
+ps.1:	mov	@r4+,r0
+	tst	r1
+	bnze	ps.3
+	inc	r1
+	dec	r4
+	swap	1,r0
+	b	ps.4
+ps.3:	clr	r1
+ps.4:	and	377,r0
+	beq	ps.2
+	jsr	r5,call
+	pchr
+	b	ps.1
+ps.2:	jmp	ret
+putoct:	mov	6,r1
+	mov	r0,r2
+	clr	r0
+po.1:	sllc	1,r2
+	rlc	1,r0
+	add	60,r0
+	jsr	r5,call
+	pchr
+	clr	r0
+	sllc	2,r2
+	rlc	2,r0
+	dec	r1
+	bnze	po.1
+	jmp	ret
+
+;
+;load binary core image over phone
+;
+DC1	=	21	;special signal
+
+load:	jsr	r5,call
+	gchr		;wait for special
+	cmp	DC1,r0
+	bneq	load
+	mov	2,r2	;loop counter
+lo.1:	mov	r3,r4
+	clr	r3
+	jsr	r5,call	;get high byte
+	gchr
+	mov	r0,r3
+	swap	1,r3
+	jsr	r5,call	;get lo byte
+	gchr
+	add	r0,r3	;add it in
+	dec	r2	;done?
+	bnze	lo.1	;no
+	clr	r1	;checksum accum
+	add	r3,r1
+	add	r4,r1
+lo.2:	clr	r2	;place to hold word
+	jsr	r5,call	;get high byte
+	gchr
+	mov	r0,r2
+	swap	1,r2
+	jsr	r5,call	;get lo byte
+	gchr
+	add	r0,r2	;add it in
+	add	r2,r1	;add to checksum
+	dec	r3	;check if done
+	bze	lo.3	;yes
+	mov	r2,@r4+	;store data
+	b	lo.2	;branch back for more
+lo.3:	tst	r1	;examine checksum
+	beq	lo.4	;its OK
+	halt		;its not OK
+lo.4:	b	load	;new packet
+
+div:	clr	r3
+	cmp	0,r2
+	bgt	di.2
+	blt	di.1
+di.err:	mov	-1,r2
+	jmp	ret2
+di.1:	dec	r3
+	neg	r2
+di.2:	mov	r3,@sp+
+	clr	r3
+	tst	r0
+	bpl	di.3
+	dec	r3
+	com	r0
+	com	r1
+	add	1,r1
+	adc	r0
+di.3:	mov	r3,@sp+
+	sllc	1,r1
+	rlc	1,r0
+	sub	r2,r0
+	bnc	di.11
+	sub	2,sp
+	b	di.err
+di.11:	mov	17,r3
+di.4:	sllc	1,r1
+	rlc	1,r0
+di.12:	mov	r1,r4
+	and	2,r4
+	beq	di.5
+	sub	r2,r0
+	b	di.6
+di.5:	add	r2,r0
+di.6:	adc	r1
+	dec	r3
+	bnze	di.4
+	mov	r1,r4
+	and	1,r4
+	bneq	di.8
+	add	r2,r0
+di.8:	mov	@-sp,r3
+	mov	@-sp,r4
+	tst	r3
+	bmi	di.9
+	tst	r4
+	bpl	di.10
+	neg	r1
+	b	di.10
+di.9:	neg	r0
+	tst	r4
+	bmi	di.10
+	neg	r1
+di.10:	clr	r2
+	jmp	ret2
+
+mul:	clr	r4
+	tst	r1
+	bpl	mu.2
+	dec	r4
+	neg	r1
+mu.2:	clr	r0
+	mov	21,r3
+mu.3:	sarc	1,r0
+	rrc	1,r1
+	bnc	mu.4
+	add	r2,r0
+mu.4:	dec	r3
+	bnze	mu.3
+	tst	r4
+	beq	mu.5
+	com	r1
+	com	r0
+	add	1,r1
+	adc	r0
+mu.5:	jmp	ret1
+
+errmes:	.ascii	/?/
+	.byte	15,12,0
+	.wordb
+nlmes:	.byte	15,12,0
+	.wordb
+colmes:	.byte	'/,40,0
+	.wordb
+spmes:	.asciz	/  /
+	.wordb
+HILIM	=	.
+.	=	IMPURE
+regsav:	0
+	0
+	0
+	0
+	0
+reg5:	0
+reg6:	0
+rtrna:	0
+status:	0
+prompt:	0
+stflg:	0
+arg1:	.blk	5
+cloc:	0
+BOTTOM	=	.

@@ -1,0 +1,12 @@
+.	=	2200
+.incld	defs.16
+
+	jsr	r5, call
+	pinit
+type:	jsr	r5, call
+	getchr
+	jsr	r5, call
+	pputc
+	b	type
+
+.incld ptr.16

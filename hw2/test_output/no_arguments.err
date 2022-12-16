@@ -1,0 +1,5 @@
+USAGE: bin/asm [-h] [-O DIR/] [-2] 
+   -h or --help                        Help: displays this help menu.
+   -O or --output-directory DIR/       Specify the /-terminated pathname of a directory into which the output binary is to be placed.
+   -2 or --no-second-pass              Perform only first-pass processing and skip the second pass.
+

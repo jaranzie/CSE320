@@ -1,0 +1,72 @@
+;
+; Driver for serial link
+;
+
+; Bit definitions
+
+B9600	=	0
+B4800	=	40
+B2400	=	100
+B1200	=	140
+B600	=	200
+B300	=	240
+B150	=	300
+B134.5	=	340
+
+NDB1	=	1
+NDB2	=	2
+NSB	=	4
+NPB	=	10
+POE	=	20
+
+TBMT	=	1
+ODA	=	2
+ROR	=	4
+RFE	=	10
+RPE	=	20
+
+STAT0	=	177762
+DATA0	=	177763
+STAT1	=	177764
+DATA1	=	177765
+
+init0:	mov	STAT0,r1
+	mov	r0, @r1
+	jmp	ret
+
+init1:	mov	STAT1, r1
+	mov	r0, @r1
+	jmp	ret
+
+pchr0:	mov	STAT0, r1
+	mov	DATA0, r2
+	b	pchr.1
+pchr1:	mov	STAT1, r1
+	mov	DATA1, r2
+pchr.1:	mov	@r1, r3
+	and	TBMT, r3
+	bze	pchr.1
+	mov	r0, @r2
+	jmp	ret
+
+ischr0:	mov	STAT0, r1
+	b	is.1
+ischr1:	mov	STAT1, r1
+is.1:	mov	@r1, r0
+	and	ODA, r0
+	jmp	ret0
+
+gchr0:	mov	STAT0, r1
+	mov	DATA0, r2
+	b	gch.1
+gchr1:	mov	STAT1, r1
+	mov	DATA1, r2
+gch.1:	mov	@r1, r3
+	mov	r3, r4
+	and	ODA, r3
+	bze	gch.1
+	mov	@r2, r0
+	clrc
+	and	ROR|RFE|RPE, r4
+	bze	ret0
+	b	eret

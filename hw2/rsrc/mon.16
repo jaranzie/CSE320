@@ -1,0 +1,1171 @@
+;
+; ROM-based debugger
+;
+; handles bitmap video or serial output
+;
+
+IMPURE	=	2000
+USTACK	=	2200
+PURE	=	170000
+
+;.	=	0
+;	b	start		; jump to main program
+
+.	=	PURE
+
+start:	mov	r5,@reg5
+	mov	regsav,r5
+	mov	r0,@r5+
+	gswd	r0
+	mov	r0,@status
+	mov	r1,@r5+
+	mov	r2,@r5+
+	mov	r3,@r5+
+	mov	r4,@r5+
+	inc	r5
+	mov	@-sp,r1
+	mov	r6,@r5+
+	mov	r1,@r5+
+	mov	BOTTOM,sp
+	tci
+	setc
+	clr	r0
+	jsr	r5, call
+	vinit
+	mov	B1200|NDB1|NDB2|NPB|NSB, r0
+	jsr	r5, call
+	init0
+	mov	B300|NDB1|NDB2|NPB|NSB, r0
+	jsr	r5, call
+	init1
+	jsr	r5, call
+	vinit
+	mov	r1, r0
+	mov	stflg,r1
+	mov	@r1,r2
+	tst	r2
+	bneq	st.1
+	jsr	r5,call
+	putoct
+st.1:	clr	r0
+	mov	r0,@r1
+	jsr	r5,call
+	newln
+	mov	'#,r0
+	mov	r0,@prompt
+
+comd:	mov	@prompt,r0
+	tst	r0
+	beq	co.17
+	jsr	r5,call
+	rputc
+co.17:	mov	'#,r0
+	mov	r0,@prompt
+	mov	arg1,r4
+co.1:	jsr	r5,call
+	getarg
+	mov	r0,@r4+
+	tst	r0
+	beq	co.2
+	mov	r1,@r4+
+co.2:	cmp	';,r2
+	bneq	co.3
+	cmp	arg1+3,r4
+	blge	error
+	b	co.1
+co.3:	clr	r1
+	mov	r1,@r4+
+	mov	error,r4
+	cmp	'@,r2
+	bneq	co.4
+	mov	atloc,r4
+co.4:	cmp	'=,r2
+	bneq	co.5
+	mov	prloc,r4
+co.5:	cmp	15,r2
+	bneq	co.6
+	mov	wloc,r4
+co.6:	cmp	12,r2
+	bneq	co.7
+	mov	nxtloc,r4
+co.7:	cmp	'g,r2
+	bneq	co.8
+	mov	go,r4
+co.8:	cmp	'p,r2
+	bneq	co.9
+	mov	cont,r4
+co.9:	cmp	'^,r2
+	bneq	co.11
+	mov	preloc,r4
+co.11:	cmp	'/,r2
+	bneq	co.20
+	mov	print,r4
+co.20:	cmp	't, r2
+	bneq	co.21
+	mov	term, r4
+co.21:	cmp	'b, r2
+	bneq	co.22
+	mov	toggle, r4
+co.22:	cmp	14, r2
+	bneq	co.16
+	mov	clear, r4
+co.16:	jsr	r5,rcall
+	b	comd
+
+getarg:	clr	r4
+	clr	r1
+	clr	r3
+	jsr	r5,call
+	getchr
+	cmp	'r,r0
+	bneq	ga.1
+	inc	r1
+	jsr	r5,call
+	getchr
+ga.1:	mov	r0,r2
+	cmp	'0,r0
+	blt	ga.3
+	cmp	'7,r0
+	bgt	ga.3
+	inc	r4
+	sub	'0,r0
+	sll	2,r3
+	sll	1,r3
+	add	r0,r3
+	jsr	r5,call
+	getchr
+	b	ga.1
+ga.3:	tst	r4
+	bneq	ga.4
+	clr	r0
+	jmp	ret2
+ga.4:	tst	r1
+	beq	ga.9
+	add	regsav,r3
+ga.9:	mov	r3,r1
+	com	r0
+	jmp	ret2
+
+getchr:	jsr	r5, call
+	vcrdsp
+	jsr	r5, call
+	gchr0
+	mov	177,r2
+	and	r2,r0
+	mov	r0,r1
+	cmp	15,r0
+	beq	ge.1
+	cmp	12,r0
+	beq	ge.1
+	cmp	r2,r0
+	bneq	ge.2
+	jmp	ret0
+ge.1:	mov	15,r0
+	jsr	r5,call
+	rputc
+	mov	12,r0
+ge.2:	jsr	r5,call
+	rputc
+	mov	r1,r0
+	jmp	ret0
+
+error:	mov	errmes,r0
+	jsr	r5,call
+	puts
+	mov	BOTTOM,sp
+	b	comd
+
+wloc:	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	ret
+	mov	@r4+,r0
+	mov	@cloc,r1
+	mov	r0,@r1
+	jmp	ret
+
+nxtloc:	mov	1,r1
+	b	nl.1
+preloc:	mov	-1,r1
+	jsr	r5,call
+	newln
+nl.1:	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	bneq	nl.2
+	mov	r1,r2
+	b	nl.3
+nl.2:	mov	@r4+,r2
+	tst	r1
+	bpl	nl.3
+	neg	r2
+nl.3:	mov	@cloc,r0
+	add	r2,r0
+	mov	r0,@cloc
+	mov	arg1,r4
+	clr	r0
+	mov	r0,@r4+
+	mov	r0,@r4+
+	jmp	print
+
+atloc:	mov	@cloc,r1
+	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	at.1
+	mov	@r4+,r1
+at.1:	mov	@r1,r0
+	mov	r0,@cloc
+	jsr	r5,call
+	newln
+	mov	arg1,r4
+	clr	r0
+	mov	r0,@r4+
+	mov	r0,@r4+
+	jmp	print
+
+prloc:	mov	@cloc,r0
+	jsr	r5,call
+	putoct
+	jsr	r5,call
+	space
+	clr	r0
+	mov	r0,@prompt
+	jmp	ret
+
+go:	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	error
+	mov	USTACK,sp
+	mov	regsav,r5
+	mov	@r5+,r0
+	mov	@r5+,r1
+	mov	@r5+,r2
+	mov	@r5+,r3
+	mov	@r4+,r4
+	jsr	r5,rcall
+	mov	1,r5
+	mov	r5,@stflg
+	b	start
+
+cont:	mov	regsav,r5
+	mov	@status,r0
+	rswd	r0
+	mov	@r5+,r0
+	mov	@r5+,r1
+	mov	@r5+,r2
+	mov	@r5+,r3
+	mov	@r5+,r4
+	mov	@r5+,r6
+	mov	@r5+,r6
+	mov	@reg5,r5
+	mov	@rtrna,pc
+
+print:	mov	@cloc,r2
+	mov	1,r3
+	mov	arg1,r4
+	mov	@r4+,r0
+	tst	r0
+	beq	pr.1
+	mov	@r4+,r2
+pr.1:	mov	@r4+,r0
+	tst	r0
+	beq	pr.2
+	mov	@r4+,r3
+pr.2:	cmp	1,r3
+	bneq	pr.5
+	mov	@r2,r0
+	jsr	r5,call
+	putoct
+	jsr	r5,call
+	space
+	mov	r2,@cloc
+	clr	r0
+	mov	r0,@prompt
+	jmp	ret
+pr.5:	mov	10,r4
+	jsr	r5,call
+	newln
+	mov	r2,r0
+	jsr	r5,call
+	putoct
+	mov	colmes,r0
+	jsr	r5,call
+	puts
+pr.4:	mov	@r2,r0
+	jsr	r5,call
+	putoct
+	jsr	r5,call
+	space
+	dec	r3
+	beq	pr.3
+	inc	r2
+	dec	r4
+	beq	pr.5
+	b	pr.4
+pr.3:	mov	r2,@cloc
+	b	newln
+
+newln:	mov	nlmes,r0
+	b	puts
+
+space:	mov	spmes,r0
+	b	puts
+
+clear:	jsr	r5, call
+	vclrsc
+	mov	TOPLIN, r1
+	clr	r2
+	b	vcmov
+
+rcall:	mov	r4,@sp+
+	b	ca.1
+call:	mov	r4,@sp+
+	mov	@r5+,r4
+ca.1:	mov	r5, @sp+
+	mov	r3, @sp+
+	mov	r2,@sp+
+	mov	r1,@sp+
+	mov	r0,@sp+
+	jmp	r4
+
+ret4:	sub	4, sp
+	clrc
+ere.4:	mov	@-sp, r5
+	dec	sp
+	jmp	r5
+ret3:	sub	4,sp
+	b	re.3
+ret2:	sub	3,sp
+	b	re.2
+ret1:	sub	2,sp
+	b	re.1
+ret0:	dec	sp
+	b	re.0
+ret:	mov	@-sp,r0
+re.0:	mov	@-sp,r1
+re.1:	mov	@-sp,r2
+re.2:	mov	@-sp,r3
+re.3:	mov	@-sp, r5
+	mov	@-sp, r4
+	clrc
+	jmp	r5
+
+eret4:	sub	4, sp
+	setc
+	b	ere.4
+eret3:	sub	4, sp
+	b	ere.3
+eret2:	sub	3, sp
+	b	ere.2
+eret1:	sub	2, sp
+	b	ere.1
+eret0:	dec	sp
+	b	ere.0
+eret:	mov	@-sp, r0
+ere.0:	mov	@-sp, r1
+ere.1:	mov	@-sp, r2
+ere.2:	mov	@-sp, r3
+ere.3:	mov	@-sp, r5
+	mov	@-sp, r4
+	setc
+	jmp	r5
+
+puts:	mov	r0,r4
+	clr	r1
+ps.1:	mov	@r4+,r0
+	tst	r1
+	bnze	ps.3
+	inc	r1
+	dec	r4
+	swap	1,r0
+	b	ps.4
+ps.3:	clr	r1
+ps.4:	and	377,r0
+	beq	ps.2
+	jsr	r5,call
+	rputc
+	b	ps.1
+ps.2:	jmp	ret
+
+putoct:	mov	6,r1
+	mov	r0,r2
+	clr	r0
+po.1:	sllc	1,r2
+	rlc	1,r0
+	add	60,r0
+	jsr	r5,call
+	rputc
+	clr	r0
+	sllc	2,r2
+	rlc	2,r0
+	dec	r1
+	bnze	po.1
+	jmp	ret
+
+rputc:	mov	@bitmap, r1
+	tst	r1
+	bze	vputc
+	b	pchr0
+
+toggle:	mov	@bitmap, r0
+	com	r0
+	mov	r0, @bitmap
+	b	ret
+
+DC1	=	21	;special signal
+
+term:	jsr	r5, call
+	vcrdsp
+	jsr	r5, call	; kbd?
+	ischr0
+	tst	r0
+	bze	te.1
+	jsr	r5, call
+	gchr0
+	jsr	r5, call	; send it
+	pchr1
+te.1:	jsr	r5, call	; modem?
+	ischr1
+	tst	r0
+	bze	term
+	jsr	r5, call
+	gchr1
+	and	177, r0
+	cmp	DC1, r0		; special?
+	bneq	te.2
+	mov	ldmes, r0
+	jsr	r5, call
+	puts
+	jsr	r5, call
+	load
+	mov	dnmes, r0
+	b	puts
+te.2:	jsr	r5, call
+	rputc
+	b	term
+
+load:	mov	2,r2	;loop counter
+lo.1:	mov	r3,r4
+	jsr	r5, call	; get word
+	gwrd
+	bc	error
+	mov	r0,r3
+	dec	r2	;done?
+	bnze	lo.1	;no
+	tst	r3
+	bze	ret
+	clr	r1	;checksum accum
+	add	r3,r1
+	add	r4,r1
+lo.2:	jsr	r5, call	; get word
+	gwrd
+	bc	error
+	add	r0,r1	;add to checksum
+	dec	r3	; done?
+	bze	lo.3	; yes
+	mov	r0,@r4+	;store data
+	b	lo.2	;branch back for more
+lo.3:	tst	r1	;examine checksum
+	beq	load	;its OK
+	b	error
+
+gwrd:	jsr	r5, call
+	gchr1
+	bc	eret
+	mov	r0, r2
+	swap	1, r2
+	jsr	r5, call
+	gchr1
+	bc	eret
+	add	r2, r0
+	jmp	ret0
+
+;
+; division and multiplication - may have errors for boundary
+; values of arguments.
+;
+; div: [r0, r1] / r2 --> r0 (quotient), r1 (remainder)
+; mul: r0 * r1 --> [r0, r1]
+;
+
+div:	clr	r3
+	cmp	0,r2
+	bgt	di.2
+	blt	di.1
+di.err:	jmp	eret
+di.1:	dec	r3
+	neg	r2
+di.2:	mov	r3,@sp+
+	clr	r3
+	tst	r0
+	bpl	di.3
+	dec	r3
+	com	r0
+	com	r1
+	add	1,r1
+	adc	r0
+di.3:	mov	r3,@sp+
+	sllc	1,r1
+	rlc	1,r0
+	bc	di.0
+	sub	r2,r0
+	bnc	di.11
+di.0:	sub	2,sp
+	b	di.err
+di.11:	mov	17,r3
+di.4:	sllc	1,r1
+	rlc	1,r0
+di.12:	mov	r1,r4
+	and	2,r4
+	beq	di.5
+	sub	r2,r0
+	b	di.6
+di.5:	add	r2,r0
+di.6:	adc	r1
+	dec	r3
+	bnze	di.4
+	mov	r1,r4
+	and	1,r4
+	bneq	di.8
+	add	r2,r0
+di.8:	mov	@-sp,r3
+	mov	@-sp,r4
+	tst	r3
+	bmi	di.9
+	tst	r4
+	bpl	di.10
+	neg	r1
+	b	di.10
+di.9:	neg	r0
+	tst	r4
+	bmi	di.10
+	neg	r1
+di.10:	jmp	ret1
+
+mul:	clr	r4
+	tst	r1
+	bpl	mu.2
+	dec	r4
+	neg	r1
+mu.2:	clr	r0
+	mov	21,r3
+mu.3:	sarc	1,r0
+	rrc	1,r1
+	bnc	mu.4
+	add	r2,r0
+mu.4:	dec	r3
+	bnze	mu.3
+	tst	r4
+	beq	mu.5
+	com	r1
+	com	r0
+	add	1,r1
+	adc	r0
+mu.5:	jmp	ret1
+
+;
+; Driver for serial link
+;
+
+; Bit definitions
+
+B9600	=	0
+B4800	=	40
+B2400	=	100
+B1200	=	140
+B600	=	200
+B300	=	240
+B150	=	300
+B134.5	=	340
+
+NDB1	=	1
+NDB2	=	2
+NSB	=	4
+NPB	=	10
+POE	=	20
+
+TBMT	=	1
+ODA	=	2
+ROR	=	4
+RFE	=	10
+RPE	=	20
+
+STAT0	=	177762
+DATA0	=	177763
+STAT1	=	177764
+DATA1	=	177765
+
+init0:	mov	STAT0,r1
+	mov	r0, @r1
+	jmp	ret
+
+init1:	mov	STAT1, r1
+	mov	r0, @r1
+	jmp	ret
+
+pchr0:	mov	STAT0, r1
+	mov	DATA0, r2
+	b	pchr.1
+pchr1:	mov	STAT1, r1
+	mov	DATA1, r2
+pchr.1:	mov	@r1, r3
+	and	TBMT, r3
+	bze	pchr.1
+	mov	r0, @r2
+	jmp	ret
+
+ischr0:	mov	STAT0, r1
+	b	is.1
+ischr1:	mov	STAT1, r1
+is.1:	mov	@r1, r0
+	and	ODA, r0
+	jmp	ret0
+
+gchr0:	mov	STAT0, r1
+	mov	DATA0, r2
+	b	gch.1
+gchr1:	mov	STAT1, r1
+	mov	DATA1, r2
+gch.1:	mov	@r1, r3
+	mov	r3, r4
+	and	ODA, r3
+	bze	gch.1
+	mov	@r2, r0
+	clrc
+	and	ROR|RFE|RPE, r4
+	bze	ret0
+	b	eret
+
+;
+; Bitmap Video Display Routines
+;
+
+LSIZE	=	10. * 32.
+TOPLIN	=	24.
+MAXB	=	VMEM + (TOPLIN * LSIZE)
+VMEM	=	130000
+VSIZE	=	20000
+
+SCRREG	=	177770
+INTLAC	=	1000
+INVERT	=	400
+
+;
+; initialize the video display
+;
+
+vinit:	clr	r0
+	mov	r0, @coffs
+	mov	r0, @ocoffs
+	mov	r0, @cchgd
+	mov	r0, @cnoclr
+	mov	r0, @bitmap
+	mov	MAXB, r0
+	mov	r0, @cbase
+	mov	r0, @ocbase
+	mov	CSLOC, r0
+	mov	r0, @csloc
+	b	ret
+
+;
+; put a character on the screen, handling
+;	cursor positioning and special chars.
+;
+
+vputc:	mov	@cbase, r2
+	mov	@coffs, r1
+	cmp	15, r0
+	bneq	vpc.1
+	clr	r0
+	mov	r0, @coffs
+	and	177740, r2
+	mov	r2, @cbase
+	b	vscchg		; display new cursor
+vpc.1:	cmp	12, r0
+	beq	vcdn
+	tst	r0
+	bze	ret
+	jsr	r5, call
+	vccrs
+	b	vcrt
+
+;
+; move the cursor to x (in r2), y (in r1)
+;
+
+vcmov:	jsr	r5, call
+	vparm
+	mov	r2, @cbase
+	mov	r1, @coffs
+	b	vscchg
+
+;
+; display the cursor
+;
+
+vcdisp:	mov	32., r3		; cursor = space
+	mov	1, r1
+	mov	r1, @cflg
+	mov	@ocoffs, r1
+	mov	@ocbase, r2
+	b	vchbo
+vccrs:	mov	@cchgd, r1
+	tst	r1
+	bnze	vcc.1
+	com	r1
+	mov	r1, @cnoclr
+vcc.1:	mov	r0, r3
+	mov	@coffs, r1
+	mov	@cbase, r2
+	b	vchbo
+
+;
+; Move the cursor up, down, left, and right
+;
+
+vcup:	mov	@cbase,  r0
+	mov	r0, r1
+	add	LSIZE, r1
+	cmp	VMEM+VSIZE, r1
+	bllt	vcu.1
+	sub	VSIZE, r1
+vcu.1:	mov	r1, @cbase
+	jsr	r5, vlbase
+	cmp	MAXB, r0		; top logical line?
+	bllt	vscchg			; no, no scrolling needed
+	jsr	r5, call
+	vclrlc
+	mov	@scroll, r1		; perform up scrolling
+	add	10., r1
+	and	377, r1
+	mov	r1, @scroll
+	xor	@vidflg, r1
+	mov	r1, @SCRREG
+	b	vscchg
+
+vcdn:	mov	@cbase, r0
+	mov	r0, r1
+	sub	LSIZE, r1
+	cmp	VMEM, r1
+	blge	vcd.1
+	add	VSIZE, r1
+vcd.1:	mov	r1, @cbase
+	jsr	r5, vlbase
+	cmp	VMEM+LSIZE, r0		; bottom logical line?
+	blge	vscchg			; no, no scrolling needed
+	jsr	r5, call
+	vclrlc
+	mov	@scroll, r1		; perform down scrolling
+	sub	10., r1
+	and	377, r1
+	mov	r1, @scroll
+	xor	@vidflg, r1
+	mov	r1, @SCRREG
+	b	vscchg
+
+vlbase:	mov	@scroll, r1
+	sll	2, r1
+	sll	2,  r1
+	sll	1, r1
+	sub	r1, r0
+	cmp	VMEM, r0
+	blge	vlb.1
+	add	VSIZE, r0
+vlb.1:	jmp	r5
+
+vcrt:	mov	@cbase, r0
+	mov	@coffs, r1
+	mov	r0, r2
+	and	37, r2
+	cmp	37, r2
+	blt	vcr.1
+	cmp	2, r1
+	bgt	ret
+vcr.1:	add	7, r1
+	cmp	16., r1
+	blt	vcr.2
+	sub	16., r1
+	inc	r0
+vcr.2:	mov	r0, @cbase
+	mov	r1, @coffs
+	b	vscchg
+
+vclf:	mov	@coffs, r0
+	sub	7, r1
+	bge	vcl.1
+	add	16., r0
+	mov	@cbase, r1
+	mov	r1, r2
+	and	37, r2
+	bze	ret
+	dec	r1
+	mov	r1, @cbase
+vcl.1:	mov	r0, @coffs
+
+vscchg:	mov	1, r0
+	mov	r0, @cchgd
+	b	ret
+
+;
+; redisplay cursor, if necessary
+;
+
+vcrdsp:	mov	@cchgd, r0
+	tst	r0
+	bze	ret
+	clr	r0
+	mov	r0, @cchgd
+	mov	@cnoclr, r0
+	tst	r0
+	bze	vcrd.1
+	clr	r0
+	mov	r0, @cnoclr
+	b	vcrd.2
+vcrd.1:	jsr	r5, call
+	vcdisp
+vcrd.2:	mov	cbase, r4
+	mov	ocbase, r5
+	mov	@r4+, r0
+	mov	r0, @r5+
+	mov	@r4+, r0
+	mov	r0, @r5+
+	b	vcdisp
+
+;
+; given x in r1, y in r2, compute address of
+;	leftmost bottom word of character into
+;	r2, and number of bits to shift into r1.
+;
+
+vparm:	sll	1, r1		; mult r1 by 10.
+	mov	r1, @sp+
+	sll	2, r1
+	add	@-sp, r1
+	sll	1, r1		; mult by 32.
+	sll	2, r1
+	sll	2, r1
+	mov	r1, @sp+	; save for later
+	mov	r2, @sp+	; mult r2 by 7
+	sll	1, r2
+	mov	r2, @sp+
+	sll	1, r2
+	add	@-sp, r2
+	add	@-sp, r2
+	clr	r1		; divide r2by16.
+	sarc	2, r2		; put rem in r1
+	rrc	2, r1
+	sarc	2, r2
+	rrc	2, r1
+	swap	1, r1
+	sar	2, r1
+	sar	2, r1
+	add	@-sp, r2	; add in rest of
+	mov	@scroll, r3	; offset
+	sll	2, r3
+	sll	2, r3
+	sll	1, r3
+	add	r3, r2
+	cmp	VSIZE, r2
+	blt	vp.1
+	sub	VSIZE, r2
+vp.1:	add	VMEM, r2
+	b	ret2
+
+;
+; put char in r0 on screen at positin r1, r2
+;
+
+vchxy:	mov	r0, r3		; save char code
+	jsr	r5, call
+	vparm
+vchbo:	mov	r3, @sp+
+	sll	2, r3
+	add	@-sp, r3
+	add	@csloc, r3
+	mov	r1, @sp+	; save shift count
+	mov	r1, r4
+	mov	10., r5		; scan line count
+;
+; the following code has:
+;	r0, r1: two word data to be shifted
+;	r2: pointer into video mmory
+;	r3: pointer into char table
+;	r4: shift count
+;	r5: scan line count
+; IDEA: first clear out old stuff,
+; then XOR in new data.  If cflg .ne.0, skip
+; the clearing and just XOR.
+;
+vc.1:	mov	@cflg, r0
+	tst	r0
+	bnze	vc.7		
+	mov	r4, r1
+	sll	1, r1
+	add	msktab, r1
+	mov	@r1, r0
+	inc	r1
+	mov	@r1, r1
+vc.3:	and	@r2, r0
+	mov	r0, @r2
+	inc	r2
+	and	@r2, r1
+	mov	r1, @r2
+	dec	r2		; stuff cleared
+vc.7:	mov	@r3, r0		; fetch scan line
+	mov	r5, r1		; see if odd/even
+	sarc	1, r1
+	bnc	vc.4
+	swap	1, r0		; use high half
+	inc	r3		; increment pointer
+vc.4:	and	177, r0
+	clr	r1		; prepare to shift
+	add	2, r4		; adjust shift count
+vc.5:	sub	2, r4
+	bze	vc.6
+	bmi	vc.8
+	sllc	2, r0
+	rlc	2, r1
+	b	vc.5
+vc.8:	sarc	1, r1
+	rrc	1, r0
+vc.6:	xor	@r2, r0		; store new stuff
+	mov	r0, @r2
+	inc	r2
+	xor	@r2, r1
+	mov	r1, @r2
+	mov	@-sp, r4
+	mov	r4, @sp+
+	add	37, r2		; new scan line
+	cmp	VMEM+VSIZE, r2
+	bllt	vc.9
+	sub	VSIZE, r2
+vc.9:	dec	r5
+	bnze	vc.1		; more lines to do
+	mov	@-sp, r0	; pop shift count
+	clr	r0
+	mov	r0, @cflg
+	b	ret
+
+;
+; fast way to clear entire screen
+;
+
+vclrsc:	mov	VMEM, r4
+	mov	177777, r0
+vcs.1:	mov	r0, @r4+
+	cmp	VMEM+VSIZE, r4
+	bllt	vcs.1
+	mov	INVERT, r0
+	mov	r0, @vidflg
+	mov	r0, @SCRREG
+	clr	r0
+	mov	r0, @scroll
+	b	ret
+
+;
+; fast way to clear line containing cursor
+;
+
+vclrlc:	mov	@cbase, r4
+	and	177740, r4
+	mov	LSIZE, r1
+	mov	177777, r0
+vclc.1:	mov	r0, @r4+
+	cmp	VMEM+VSIZE, r4
+	bllt	vclc.2
+	sub	VSIZE, r4
+vclc.2:	dec	r1
+	bnze	vclc.1
+	b	ret
+
+msktab:	.word	177600, 177777, 177401, 177777
+	.word	177003, 177777, 176007, 177777
+	.word	174017, 177777, 170037, 177777
+	.word	160077, 177777, 140177, 177777
+	.word	100377, 177777, 000777, 177777
+	.word	001777, 177776, 003777, 177774
+	.word	007777, 177770, 017777, 177760
+	.word	037777, 177740, 077777, 177700
+
+CSLOC:
+.byte	101,177,103,177,145,175,125,105,143,135	;^@
+.byte	101,177,135,177,101,135,135,135,167,153	;^A
+.byte	101,177,141,177,135,135,135,141,141,135	;^B
+.byte	101,177,143,177,175,135,175,175,143,135	;^C
+.byte	101,177,141,177,135,135,135,135,141,135	;^D
+.byte	101,177,101,177,175,175,175,141,101,175	;^E
+.byte	101,177,175,177,175,175,175,141,101,175	;^F
+.byte	101,177,103,177,115,135,175,175,103,175	;^G
+.byte	101,177,135,177,135,135,135,101,135,135	;^H
+.byte	101,177,143,177,167,167,167,167,143,167	;^I
+.byte	101,177,143,177,137,135,137,137,137,137	;^J
+.byte	101,177,135,177,165,155,165,171,135,155	;^K
+.byte	101,177,101,177,175,175,175,175,175,175	;^L
+.byte	101,177,135,177,135,135,125,125,135,111	;^M
+.byte	101,177,135,177,115,135,131,125,135,135	;^N
+.byte	101,177,143,177,135,135,135,135,143,135	;^O
+.byte	101,177,175,177,175,175,135,141,141,135	;^P
+.byte	101,177,123,177,125,155,135,135,143,135	;^Q
+.byte	101,177,135,177,165,155,135,141,141,135	;^R
+.byte	101,177,143,177,137,135,175,143,143,135	;^S
+.byte	101,177,167,177,167,167,167,167,101,167	;^T
+.byte	101,177,143,177,135,135,135,135,135,135	;^U
+.byte	101,177,167,177,135,153,135,135,135,135	;^V
+.byte	101,177,135,177,125,111,135,125,135,135	;^W
+.byte	101,177,135,177,153,135,153,167,135,135	;^X
+.byte	101,177,167,177,167,167,153,167,135,135	;^Y
+.byte	101,177,101,177,173,175,157,167,101,137	;^Z
+.byte	101,177,101,177,171,171,171,171,101,171	;^[
+.byte	101,177,177,177,157,137,173,167,177,175	;^\
+.byte	101,177,101,177,117,117,117,117,101,117	;^]
+.byte	101,177,177,177,135,177,167,153,177,177	;^^
+.byte	101,177,101,177,177,177,177,177,177,177	;^_
+.byte	177,177,177,177,177,177,177,177,177,177	;
+.byte	177,177,167,177,167,177,167,167,167,167	;!
+.byte	177,177,177,177,177,177,153,177,153,153	;"
+.byte	177,177,153,177,101,153,101,153,153,153	;#
+.byte	177,177,167,177,127,141,175,143,167,103	;$
+.byte	177,177,117,177,173,115,157,167,171,131	;%
+.byte	177,177,123,177,125,155,165,173,173,165	;&
+.byte	177,177,177,177,177,177,167,177,167,167	;'
+.byte	177,177,167,177,175,173,175,175,167,173	;(
+.byte	177,177,167,177,137,157,137,137,167,157	;)
+.byte	177,177,167,177,143,125,143,167,167,125	;*
+.byte	177,177,177,177,167,167,167,101,177,167	;+
+.byte	177,177,173,177,167,167,177,177,177,177	; 
+.byte	177,177,177,177,177,177,177,101,177,177	;-
+.byte	177,177,167,177,177,177,177,177,177,177	;.
+.byte	177,177,177,177,173,175,157,167,177,137	;/
+.byte	177,177,143,177,131,135,115,125,143,135	;0
+.byte	177,177,143,177,167,167,167,167,167,163	;1
+.byte	177,177,101,177,173,175,137,147,143,135	;2
+.byte	177,177,143,177,137,135,157,147,101,137	;3
+.byte	177,177,157,177,101,157,153,155,157,147	;4
+.byte	177,177,143,177,137,135,141,137,101,175	;5
+.byte	177,177,143,177,135,135,175,141,107,173	;6
+.byte	177,177,173,177,173,173,157,167,101,137	;7
+.byte	177,177,143,177,135,135,135,143,143,135	;8
+.byte	177,177,161,177,137,157,135,103,143,135	;9
+.byte	177,177,177,177,167,177,167,177,177,177	;:
+.byte	177,177,173,177,167,167,167,177,177,177	;;
+.byte	177,177,157,177,173,167,173,175,157,167	;<
+.byte	177,177,177,177,101,177,101,177,177,177	;=
+.byte	177,177,173,177,157,167,157,137,173,167	;>
+.byte	177,177,167,177,167,177,157,167,143,135	;?
+.byte	177,177,103,177,145,175,125,105,143,135	;@
+.byte	177,177,135,177,101,135,135,135,167,153	;A
+.byte	177,177,141,177,135,135,135,141,141,135	;B
+.byte	177,177,143,177,175,135,175,175,143,135	;C
+.byte	177,177,141,177,135,135,135,135,141,135	;D
+.byte	177,177,101,177,175,175,175,141,101,175	;E
+.byte	177,177,175,177,175,175,175,141,101,175	;F
+.byte	177,177,103,177,115,135,175,175,103,175	;G
+.byte	177,177,135,177,135,135,135,101,135,135	;H
+.byte	177,177,143,177,167,167,167,167,143,167	;I
+.byte	177,177,143,177,137,135,137,137,137,137	;J
+.byte	177,177,135,177,165,155,165,171,135,155	;K
+.byte	177,177,101,177,175,175,175,175,175,175	;L
+.byte	177,177,135,177,135,135,125,125,135,111	;M
+.byte	177,177,135,177,115,135,131,125,135,135	;N
+.byte	177,177,143,177,135,135,135,135,143,135	;O
+.byte	177,177,175,177,175,175,135,141,141,135	;P
+.byte	177,177,123,177,125,155,135,135,143,135	;Q
+.byte	177,177,135,177,165,155,135,141,141,135	;R
+.byte	177,177,143,177,137,135,175,143,143,135	;S
+.byte	177,177,167,177,167,167,167,167,101,167	;T
+.byte	177,177,143,177,135,135,135,135,135,135	;U
+.byte	177,177,167,177,135,153,135,135,135,135	;V
+.byte	177,177,135,177,125,111,135,125,135,135	;W
+.byte	177,177,135,177,153,135,153,167,135,135	;X
+.byte	177,177,167,177,167,167,153,167,135,135	;Y
+.byte	177,177,101,177,173,175,157,167,101,137	;Z
+.byte	177,177,101,177,171,171,171,171,101,171	;[
+.byte	177,177,177,177,157,137,173,167,177,175	;\
+.byte	177,177,101,177,117,117,117,117,101,117	;]
+.byte	177,177,177,177,135,177,167,153,177,177	;^
+.byte	177,177,101,177,177,177,177,177,177,177	;_
+.byte	177,177,177,177,101,177,175,161,177,177	;`
+.byte	177,177,123,177,135,115,123,115,177,177	;a
+.byte	177,177,145,177,135,131,145,131,175,175	;b
+.byte	177,177,103,177,175,175,103,175,177,177	;c
+.byte	177,177,123,177,135,115,123,115,137,137	;d
+.byte	177,177,143,177,101,175,143,135,177,177	;e
+.byte	177,177,167,177,167,167,167,143,157,167	;f
+.byte	143,177,123,137,135,115,123,115,177,177	;g
+.byte	177,177,135,177,135,135,141,135,175,175	;h
+.byte	177,177,143,177,167,167,177,163,177,167	;i
+.byte	163,177,157,157,157,157,177,157,177,157	;j
+.byte	177,177,135,177,161,155,155,165,175,135	;k
+.byte	177,177,143,177,167,167,167,167,163,167	;l
+.byte	177,177,125,177,125,125,151,125,177,177	;m
+.byte	177,177,135,177,135,135,141,135,177,177	;n
+.byte	177,177,143,177,135,135,143,135,177,177	;o
+.byte	175,177,145,175,135,131,145,131,177,177	;p
+.byte	137,177,123,137,135,115,123,115,177,177	;q
+.byte	177,177,175,177,175,175,105,171,177,177	;r
+.byte	177,177,141,177,143,137,103,175,177,177	;s
+.byte	177,177,157,177,167,167,143,167,167,167	;t
+.byte	177,177,103,177,135,135,135,135,177,177	;u
+.byte	177,177,167,177,153,153,135,135,177,177	;v
+.byte	177,177,153,177,135,125,135,135,177,177	;w
+.byte	177,177,135,177,167,153,135,153,177,177	;x
+.byte	143,177,143,137,135,135,135,135,177,177	;y
+.byte	177,177,101,177,167,173,101,157,177,177	;z
+.byte	177,177,157,177,167,167,167,173,157,167	;{
+.byte	177,177,167,177,167,167,167,177,167,167	;|
+.byte	177,177,173,177,167,167,167,157,173,167	;}
+.byte	177,177,177,177,175,177,137,143,177,177	;~
+.byte	177,177,101,177,101,101,101,101,101,101	;DEL
+
+
+errmes:	.ascii	/?/
+	.byte	15,12,0
+	.wordb
+nlmes:	.byte	15,12,0
+	.wordb
+colmes:	.byte	'/,40,0
+	.wordb
+spmes:	.asciz	/  /
+	.wordb
+ldmes:	.ascii	/LD/
+	.byte	15,12,0
+	.wordb
+dnmes:	.ascii	/DN/
+	.byte	15,12,0
+	.wordb
+
+HILIM	=	.
+
+.	=	IMPURE
+
+regsav:	0
+	0
+	0
+	0
+	0
+reg5:	0
+reg6:	0
+rtrna:	0
+status:	0
+prompt:	0
+stflg:	0
+arg1:	.blk	5
+cloc:	0
+bitmap:	0
+
+; global video data
+
+scroll:	.word	0		; current scroll counter
+cbase:	.word	0		; cursor base
+coffs:	.word	0		; offset in bits
+csloc:	.word	0		; loc of cs table
+cflg:	.word	0		; clear or not?
+ocbase:	.word	0		; old cursor base
+ocoffs:	.word	0		; old cursor offset
+cchgd:	.word	0		; has cursor position changed?
+cnoclr:	.word	0		; need to clear old cursor
+vidflg:	.word	0		; video status flags
+
+BOTTOM	=	.

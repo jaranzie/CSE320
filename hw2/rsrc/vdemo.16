@@ -1,0 +1,298 @@
+.	=	150000
+
+call	=	170756
+ret	=	171013
+ret0	=	171010
+mul	=	171442
+div	=	171327
+vclrsc	=	172376
+
+MAXX	=	256.
+MAXY	=	512.
+NL	=	300.
+
+
+	clr	r0
+	mov	r0, @flag
+	jsr	r5, call
+	vclrsc
+	jsr	r5, call
+	srand
+	clr	r0
+	mov	r0, @x1
+	mov	r0, @y1
+	mov	r0, @x2
+	mov	r0, @y2
+	mov	r0, @cnt1
+	mov	r0, @cnt2
+	mov	r0, @at
+loop:	mov	@flag, r0
+	tst	r0
+	bze	lo.3
+	mov	r5, r1
+	add	tx1, r1
+	mov	@r1, r0
+	mov	r5, r1
+	add	tx2, r1
+	mov	@r1, r2
+	mov	r5, r1
+	add	ty2, r1
+	mov	@r1, r3
+	mov	r5, r1
+	add	ty1, r1
+	mov	@r1, r1
+	jsr	r5, call
+	pline
+lo.3:
+	mov	@cnt1, r0
+	tst	r0
+	bnze	lo.1
+	mov	10., r0
+	jsr	r5, call
+	rnd
+	inc	r0
+	mov	r0, r1
+	sll	2, r1
+	add	r1, r0
+lo.1:	dec	r0
+	mov	r0, @cnt1
+	mov	@cnt2, r0
+	tst	r0
+	bnze	lo.2
+	mov	9., r1
+	mov	r1, r0
+	mov	4, r2
+	jsr	r5, call
+	rnd
+	sub	r2, r0
+	mov	r0, @dx1
+	mov	r1, r0
+	jsr	r5, call
+	rnd
+	sub	r2, r0
+	mov	r0, @dy1
+	mov	r1, r0
+	jsr	r5, call
+	rnd
+	sub	r2, r0
+	mov	r0, @dx2
+	mov	r1, r0
+	jsr	r5, call
+	rnd
+	sub	r2, r0
+	mov	r0, @dy2
+	mov	10., r0
+	jsr	r5, call
+	rnd
+	inc	r0
+	mov	r0, r1
+	sll	2, r1
+	add	r1, r0
+lo.2:	dec	r0
+	mov	r0, @cnt2
+	mov	@y2, r0
+	add	@dy2, r0
+	bge	upy2.1
+	b	upy2.2
+upy2.1:	cmp	MAXY, r0
+	blt	upy1
+upy2.2:	mov	@dy2, r0
+	neg	r0
+	mov	r0, @dy2
+	mov	@y2, r0
+upy1:	mov	r0, r3
+	mov	@y1, r0
+	add	@dy1, r0
+	bge	upy1.1
+	b	upy1.2
+upy1.1:	cmp	MAXY, r0
+	blt	upx2
+upy1.2:	mov	@dy1, r0
+	neg	r0
+	mov	r0, @dy1
+	mov	@y1, r0
+upx2:	mov	r0, r1
+	mov	@x2, r0
+	add	@dx2, r0
+	bge	upx2.1
+	b	upx2.2
+upx2.1:	cmp	MAXX, r0
+	blt	upx1
+upx2.2:	mov	@dx2, r0
+	neg	r0
+	mov	r0, @dx2
+	mov	@x2, r0
+upx1:	mov	r0, r2
+	mov	@x1, r0
+	add	@dx1, r0
+	bge	upx1.1
+	b	upx1.2
+upx1.1:	cmp	MAXX, r0
+	blt	done
+upx1.2:	mov	@dx1, r0
+	neg	r0
+	mov	r0, @dx1
+	mov	@x1, r0
+done:	jsr	r5, call
+	pline
+	mov	r0, @x1
+	mov	r1, @y1
+	mov	r2, @x2
+	mov	r3, @y2
+	mov	@at, r4
+	mov	r4, r5
+	add	tx1, r4
+	mov	r0, @r4
+	mov	r5, r4
+	add	ty1, r4
+	mov	r1, @r4
+	mov	r5, r4
+	add	tx2, r4
+	mov	r2, @r4
+	mov	r5, r4
+	add	ty2, r4
+	mov	r3, @r4
+	inc	r5
+	cmp	NL, r5
+	blt	lo.5
+	clr	r5
+	mov	1, r0
+	mov	r0, @flag
+lo.5:	mov	r5, @at
+	b	loop
+
+x1:	0
+x2:	0
+y1:	0
+y2:	0
+cnt1:	0
+cnt2:	0
+at:	0
+dx1:	0
+dx2:	0
+dy1:	0
+dy2:	0
+flag:	0
+tx1:	.	=	. + NL
+tx2:	.	=	. + NL
+ty1:	.	=	. + NL
+ty2:	.	=	. + NL
+rnd:	mov	r0, r2
+	jsr	r5, call
+	rand
+	mov	r0, r1
+	clr	r0
+	jsr	r5, call
+	div
+	b	ret0
+
+pline:	mov	777, r4
+	and	r4, r1
+	and	r4, r3
+	mov	377, r4
+	and	r4, r0
+	and	r4, r2
+	b	line
+
+.incld	rand.16
+
+VMEM	=	130000
+
+
+;
+; place a dot at row r0, column r1
+;
+
+plot:	sll	2, r0
+	sll	2, r0
+	sll	1, r0			; mult r0 by 32.
+	add	VMEM, r0		; address of row
+	mov	r1, r2
+	and	17, r2
+	sar	2, r1
+	sar	2, r1			; divide r1 by 16.
+	add	r0, r1			; address of word
+	add	msktab, r2		; get bit mask
+	mov	@r1, r3			; word to change
+	xor	@r2, r3
+	mov	r3, @r1			; change it
+	b	ret
+
+msktab:	.word	000001, 000002, 000004, 000010, 000020, 000040
+	.word	000100, 000200, 000400, 001000, 002000, 004000
+	.word	010000, 020000, 040000, 100000
+
+;
+; draw a line from row r0, column r1 to row r2, column r3
+;
+
+line:	mov	r2, @nx1
+	mov	r3, @ny1
+	mov	1, r4
+	mov	r4, r5
+	sub	r0, r2
+	bge	lin.1
+	neg	r2
+	neg	r4
+lin.1:	mov	r2, @adx
+	mov	r4, @sdx
+	sub	r1, r3
+	bge	lin.2
+	neg	r3
+	neg	r5
+lin.2:	mov	r3, @ady
+	mov	r5, @sdy
+	cmp	r2, r3
+	bge	yalg
+	clr	r2
+xalg:	jsr	r5, call
+	plot
+	cmp	@nx1, r0
+	beq	ret
+	add	@sdx, r0
+	sub	@ady, r2
+	mov	r2, r3
+	mov	r2, r4
+	bge	xal.1
+	neg	r2
+xal.1:	add	@adx, r3
+	mov	r3, r5
+	bge	xal.2
+	neg	r3
+xal.2:	cmp	r2, r3
+	bge	xal.3
+	mov	r5, r2
+	add	@sdy, r1
+	b	xalg
+xal.3:	mov	r4, r2
+	b	xalg
+
+yalg:	clr	r2
+yal.4:	jsr	r5, call
+	plot
+	cmp	@ny1, r1
+	beq	ret
+	add	@sdy, r1
+	add	@adx, r2
+	mov	r2, r3
+	mov	r2, r4
+	bge	yal.1
+	neg	r2
+yal.1:	sub	@ady, r3
+	mov	r3, r5
+	bge	yal.2
+	neg	r3
+yal.2:	cmp	r2, r3
+	bge	yal.3
+	mov	r5, r2
+	add	@sdx, r0
+	b	yal.4
+yal.3:	mov	r4, r2
+	b	yal.4
+
+adx:	.word	0
+ady:	.word	0
+sdx:	.word	0
+sdy:	.word	0
+nx1:	.word	0
+ny1:	.word	0

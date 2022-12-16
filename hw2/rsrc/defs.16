@@ -1,0 +1,25 @@
+;	Locations of useful monitor routines
+;
+getchr	=	512
+newln	=	1105
+space	=	1115
+rcall	=	1125
+call	=	1130
+ret4	=	1140
+ret3	=	1144
+ret2	=	1151
+ret1	=	1156
+ret0	=	1163
+ret	=	1167
+puts	=	1176
+putoct	=	1226
+div	=	1416
+mul	=	1533
+gchr0	=	1635
+gchr1	=	1643
+pchr0	=	1600
+pchr1	=	1606
+init0	=	1566
+init1	=	1573
+ischr0	=	1622
+ischr1	=	1626

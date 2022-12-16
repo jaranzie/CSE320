@@ -1,0 +1,1824 @@
+000000		;
+		; VT52 Simulator Program
+		; Also includes insert/delete line/char functions of a
+		; Teleray 1061
+		;
+		
+		; For two bits of blank between each character, instead of one,
+		; uncomment the next line
+		
+		;#define WIDTH7 0
+		
+		call = 170756
+		ret = 171013
+		ret0 = 171010
+		ret2 = 171000
+		load = 171215
+		
+		SIVEC0 = 3004
+		SOVEC0 = 3010
+		SIVEC1 = 3014
+		SOVEC1 = 3020
+		LDADDR = 150000
+		
+		; Interrupt Vectors
+		
+		. = SIVEC0
+003004		
+	001167	 mov r7, @sp+
+003005	001040	 b intr
+	033004	
+003007		
+		. = SOVEC0
+003010		
+	001167	 mov r7, @sp+
+003011	001040	 b intr
+	033010	
+003013		
+		. = SIVEC1
+003014		
+	001167	 mov r7, @sp+
+003015	001040	 b intr
+	033014	
+003017		
+		. = SOVEC1
+003020		
+	001167	 mov r7, @sp+
+003021	001040	 b intr
+	033020	
+003023		
+		. = LDADDR
+050000		
+	001000	 b start
+	004360	
+050002		
+	001161	intr: mov r1, @sp+
+050003	000061	 gswd r1
+050004	001161	 mov r1, @sp+
+050005	000003	 dis
+050006	000005	 tci
+050007	000006	 clrc
+050010	001162	 mov r2, @sp+
+050011	000261	 mov sp, r1
+050012	001471	 sub 4, r1
+	000004	
+050014	001212	 mov @r1, r2 ; get back old pc
+050015	001110	 mov r0, @r1 ; clobber the intru vec info
+050016	001472	 sub SIVEC0 + 1, r2
+	003005	
+050020	000156	 sar 2, r2
+050021	001372	 add itable, r2
+	150041	
+050023	001163	 mov r3, @sp+
+050024	001164	 mov r4, @sp+
+050025	001165	 mov r5, @sp+
+050026	001227	 mov @r2, pc ; branch to service routine
+050027		
+	001265	iret: mov @-sp, r5
+050030	001264	 mov @-sp, r4
+050031	001263	 mov @-sp, r3
+050032	001262	 mov @-sp, r2
+050033	001261	 mov @-sp, r1
+050034	000071	 rswd r1
+050035	001261	 mov @-sp, r1
+050036	001260	 mov @-sp, r0
+050037	000002	 eis
+050040	001267	 mov @-sp, pc
+050041		
+	150152	itable: siint0
+050042	150201	 soint0
+050043	150160	 siint1
+050044	150212	 soint1
+050045		
+		;
+		; Serial Interface Driver Routines - with interrupts
+		;
+		
+		B9600 = 0
+		B4800 = 40
+		B2400 = 100
+		B1200 = 140
+		B600 = 200
+		B300 = 240
+		B150 = 300
+		B134.5 = 340
+		
+		NDB1 = 1
+		NDB2 = 2
+		NSB = 4
+		NPB = 10
+		POE = 20
+		
+		TBMT = 1
+		ODA = 2
+		ROR = 4
+		RFE = 10
+		RPE = 20
+		IEN = 400
+		
+		STAT0 = 177762
+		DATA0 = 177763
+		STAT1 = 177764
+		DATA1 = 177765
+		
+	001271	init0: mov STAT0, r1
+	177762	
+050047	001110	 mov r0, @r1
+050050	001000	 jmp ret
+	020741	
+050052		
+	001271	init1: mov STAT1, r1
+	177764	
+050054	001110	 mov r0, @r1
+050055	001000	 jmp ret
+	020734	
+050057		
+	001271	pchr0: mov sobuf0, r1
+	150341	
+050061	001272	 mov STAT0, r2
+	177762	
+050063	001000	 b pchr
+	000004	
+050065		
+	001271	pchr1: mov sobuf1, r1
+	152357	
+050067	001272	 mov STAT1, r2
+	177764	
+050071		
+	000003	pchr: dis
+050072	000004	 jsr r5, call
+	000760	
+	000756	
+050075	150246	 putbuf
+050076	000004	 jsr r4, sostrt
+	000320	
+	000223	
+050101	000002	 eis
+050102	001000	 b ret
+	020707	
+050104		
+	001271	ischr0: mov sibuf0, r1
+	150326	
+050106	001000	 b ischr
+	000002	
+050110		
+	001271	ischr1: mov sibuf1, r1
+	150354	
+050112		
+	000003	ischr: dis
+050113	000004	 jsr r5, call
+	000760	
+	000756	
+050116	150314	 size
+050117	000002	 eis
+050120	001000	 b ret0
+	020666	
+050122		
+	001271	gchr0: mov sibuf0, r1
+	150326	
+050124	001000	 b gchr
+	000002	
+050126		
+	001271	gchr1: mov sibuf1, r1
+	150354	
+050130		
+	000003	gchr: dis
+050131	000004	 jsr r5, call
+	000760	
+	000756	
+050134	150314	 size
+050135	000200	 tst r0
+050136	001014	 bnze gch.1
+	000003	
+050140	000002	 eis
+050141	001000	 b ret
+	020650	
+050143	000004	gch.1: jsr r5, call
+	000760	
+	000756	
+050146	150271	 getbuf
+050147	000002	 eis
+050150	001000	 b ret0
+	020636	
+050152		
+	001271	siint0: mov sibuf0, r1
+	150326	
+050154	001272	 mov STAT0, r2
+	177762	
+050156	001000	 b siint
+	000004	
+050160		
+	001271	siint1: mov sibuf1, r1
+	150354	
+050162	001272	 mov STAT1, r2
+	177764	
+050164		
+	001220	siint: mov @r2, r0 ; get status register
+050165	001670	 and ODA, r0 ; is there a character?
+	000002	
+050167	001044	 bze iret ; no, return
+	000141	
+050171	000012	 inc r2 ; address of data register
+050172	001220	 mov @r2, r0 ; get character
+050173	000004	 jsr r5, call
+	000760	
+	000756	
+050176	150246	 putbuf ; store character
+050177	001044	 bze iret ; and return
+	000151	
+050201		
+	001271	soint0: mov sobuf0, r1
+	150341	
+050203	001272	 mov STAT0, r2
+	177762	
+050205	000004	 jsr r4, sostrt
+	000320	
+	000223	
+050210	001040	 b iret
+	000162	
+050212		
+	001271	soint1: mov sobuf1, r1
+	152357	
+050214	001272	 mov STAT1, r2
+	177764	
+050216	000004	 jsr r4, sostrt
+	000320	
+	000223	
+050221	001040	 b iret
+	000173	
+050223		
+	000004	sostrt: jsr r5, call
+	000760	
+	000756	
+050226	150314	 size ; anything in queue
+050227	000200	 tst r0
+050230	001004	 bze sos.1 ; no return
+	000013	
+050232	001220	 mov @r2, r0
+050233	001670	 and TBMT, r0 ; UART ready?
+	000001	
+050235	001004	 bze sos.1 ; no, return
+	000006	
+050237	000004	 jsr r5, call
+	000760	
+	000756	
+050242	150271	 getbuf
+050243	000012	 inc r2 ; get data register address
+050244	001120	 mov r0, @r2 ; send data
+050245	000247	sos.1: mov r4, pc ; and return
+050246		
+		.incld buf.16
+		;
+		; Circular buffer routines
+		;
+		;	buf:	startptr
+		;		endptr
+		;		size
+		;		.blk	size
+		;
+		; address of buffer in r1
+		
+	000214	putbuf:	mov	r1, r4
+050247	001241		mov	@r4+, r1
+050250	001245		mov	@r4+, r5
+050251	001242		mov	@r4+, r2
+050252	001150		mov	r0, @r5+	; store data
+050253	000250		mov	r5, r0
+050254	000440		sub	r4, r0
+050255	000520		cmp	r2, r0
+050256	001014		bneq	pu.1
+	000001	
+050260	000245		mov	r4, r5
+050261	000515	pu.1:	cmp	r1, r5
+050262	001004		beq	ret
+	020527	
+050264	001474		sub	2, r4
+	000002	
+050266	001145		mov	r5, @r4+
+050267	001000		jmp	ret
+	020522	
+050271		
+	000214	getbuf:	mov	r1, r4
+050272	001245		mov	@r4+, r5
+050273	001241		mov	@r4+, r1
+050274	001242		mov	@r4+, r2
+050275	000515		cmp	r1, r5
+050276	001004		beq	ret0
+	020510	
+050300	001250		mov	@r5+, r0
+050301	000253		mov	r5, r3
+050302	000443		sub	r4, r3
+050303	000523		cmp	r2, r3
+050304	001014		bneq	ge.1
+	000001	
+050306	000245		mov	r4, r5
+050307	001474	ge.1:	sub	3, r4
+	000003	
+050311	001145		mov	r5, @r4+
+050312	001000		jmp	ret0
+	020474	
+050314		
+	000214	size:	mov	r1, r4
+050315	001241		mov	@r4+, r1
+050316	001240		mov	@r4+, r0
+050317	001242		mov	@r4+, r2
+050320	000410		sub	r1, r0
+050321	001015		bge	ret0
+	020465	
+050323	000320		add	r2, r0
+050324	001000		b	ret0
+	020462	
+050326		
+	150331	sibuf0: sibuf0 + 3
+050327	150331	 sibuf0 + 3
+050330	000010	 8.
+050331		 . = .+8.
+050341		
+	150344	sobuf0: sobuf0 + 3
+050342	150344	 sobuf0 + 3
+050343	000010	 8.
+050344		 . = .+8.
+050354		
+	150357	sibuf1: sibuf1 + 3
+050355	150357	 sibuf1 + 3
+050356	002000	 1024.
+050357		 . = .+1024.
+052357		
+	152362	sobuf1: sobuf1 + 3
+052360	152362	 sobuf1 + 3
+052361	000010	 8.
+052362		 . = .+1024.
+054362		
+		;
+		; Vt52 Simulator Routines
+		;
+		
+		; Initialize various devices and execute the simulation loop
+		
+	000003	start: dis
+054363	001270	 mov B1200|NDB1|NDB2|NPB|NSB|IEN, r0
+	000557	
+054365	000004	 jsr r5, call
+	000760	
+	000756	
+054370	150045	 init0
+054371	001270	 mov B300|NDB1|NDB2|NPB|NSB|IEN, r0
+	000657	
+054373	000004	 jsr r5, call
+	000760	
+	000756	
+054376	150052	 init1
+054377	000004	 jsr r5, call
+	000760	
+	000756	
+054402	154612	 vinit
+054403	000002	 eis
+054404	000004	loop: jsr r5, call ; main loop
+	000760	
+	000756	
+054407	154503	 sim
+054410	001040	 b loop
+	000005	
+054412		
+		; Idle routine is called when waiting for characters to process
+		; It copies from SI0 -> SO1 and redisplays the cursor
+		
+		BLKCNT = 250.
+		
+	000004	idle: jsr r5, call
+	000760	
+	000756	
+054415	150104	 ischr0
+054416	000200	 tst r0
+054417	001014	 bnze idl.1
+	000050	
+054421	000004	 jsr r5, call
+	000760	
+	000756	
+054424	155663	 vcrdsp
+054425	001200	 mov @blink, r0
+	156570	
+054427	000020	 dec r0
+054430	001003	 bpl idl.2
+	000016	
+054432	001270	 mov BLKCNT, r0
+	000372	
+054434	001100	 mov r0, @blink
+	156570	
+054436	001200	 mov @cnoclr, r0
+	156565	
+054440	000200	 tst r0
+054441	001004	 bze ret
+	014350	
+054443	000700	 clr r0
+054444	001100	 mov r0, @cnoclr
+	156565	
+054446	001000	 b vcdisp
+	000535	
+054450	001100	idl.2: mov r0, @blink
+	156570	
+054452	001570	 cmp BLKCNT/2, r0
+	000175	
+054454	001014	 bneq ret
+	014335	
+054456	001200	 mov @cnoclr, r0
+	156565	
+054460	000200	 tst r0
+054461	001014	 bnze ret
+	014330	
+054463	001270	 mov 1, r0
+	000001	
+054465	001100	 mov r0, @cnoclr
+	156565	
+054467	001000	 b vcdisp
+	000514	
+054471	000004	idl.1: jsr r5, call
+	000760	
+	000756	
+054474	150122	 gchr0
+054475	000004	 jsr r5, call
+	000760	
+	000756	
+054500	150065	 pchr1
+054501	001000	 b ret
+	014310	
+054503		
+		;
+		; Simulate the action of a VT52 for one command
+		;
+		
+	000004	sim: jsr r4, vgchr ; If a printing character,
+	000330	
+	000570	
+054506	001670	 and 177, r0 ; don't bother to rediplay cursor
+	000177	
+054510	001570	 cmp DEL, r0
+	000177	
+054512	001015	 bge ret
+	014277	
+054514	001570	 cmp SPACE, r0
+	000040	
+054516	001005	 blt sim.1
+	000006	
+054520	000004	 jsr r5, call
+	000760	
+	000756	
+054523	155237	 vccrs
+054524	001000	 b vcrt
+	000604	
+054526	000004	sim.1: jsr r5, call ; We must redisplay cursor
+	000760	
+	000756	
+054531	155663	 vcrdsp ; before processing cursor positioning
+054532	001570	 cmp CR, r0 ; commands so we know whether
+	000015	
+054534	001004	 beq vcr ; we wipe out the cursor or not
+	000117	
+054536	001570	 cmp LF, r0
+	000012	
+054540	001004	 beq vlf
+	000666	
+054542	001570	 cmp TAB, r0
+	000011	
+054544	001004	 beq vtab
+	000251	
+054546	001570	 cmp BS, r0
+	000010	
+054550	001004	 beq vclf
+	000623	
+054552	001570	 cmp ESC, r0
+	000033	
+054554	001004	 beq vesc
+	000114	
+054556	001570	 cmp BEL, r0
+	000007	
+054560	001004	 beq ret
+	014231	
+054562	001570	 cmp DC1, r0
+	000021	
+054564	001004	 beq ret
+	014225	
+054566	001000	 b ret
+	014223	
+054570		
+	000004	vgchr: jsr r5, call ; Call this to wait for additional
+	000760	
+	000756	
+054573	150110	 ischr1 ; characters in multi-character commands
+054574	000200	 tst r0
+054575	001014	 bnze vgc.1
+	000006	
+054577	000004	 jsr r5, call
+	000760	
+	000756	
+054602	154412	 idle
+054603	001040	 b vgchr
+	000014	
+054605	000004	vgc.1: jsr r5, call
+	000760	
+	000756	
+054610	150126	 gchr1
+054611	000247	 mov r4, pc
+054612		
+		;
+		; Bitmap Video Display Routines
+		;
+		
+		; NOTE: the following constants have been named to make the
+		; code easier to read. This does not automatically mean
+		; that they can be changed here without modifying code
+		; elsewhere. It is probably safe to change NLINES,
+		; VMEM, VSIZE, and NCPL. To change NSPL, NWPS, LSIZE,
+		; requies changes to vparm and vchbo.
+		
+		LSIZE = NSPL * NWPS ; # of words per char line
+		NSPL = 10. ; # of scans per char line
+		NWPS = 32. ; # of words per scan
+		VMEM = 130000 ; start of video memory
+		VSIZE = 20000 ; size of video memory
+		NLINES = 24. ; number of char lines per screen
+		
+		NCPL = 85.
+		
+		
+		
+		
+		SCRREG = 177770
+		INTLAC = 1000
+		INVERT = 400
+		
+		CR = 15
+		LF = 12
+		ESC = 33
+		BS = 10
+		TAB = 11
+		BEL = 7
+		DEL = 177
+		SPACE = 40
+		DC1 = 21
+		
+		CSLOC = 172506
+		
+		
+		
+		
+		;
+		; Initialize the video display
+		;
+		
+	001270	vinit: mov INVERT, r0 ; zero scroll counter, no inverse video
+	000400	
+054614	001100	 mov r0, @SCRREG
+	177770	
+054616	001100	 mov r0, @vidflg
+	156566	
+054620	000004	 jsr r5, call
+	000760	
+	000756	
+054623	156111	 vclrsc ; clear screen
+054624	000700	 clr r0
+054625	001100	 mov r0, @scroll ; clear variables
+	156555	
+054627	001100	 mov r0, @coffs
+	156557	
+054631	001100	 mov r0, @ocoffs
+	156563	
+054633	001100	 mov r0, @cchgd
+	156564	
+054635	001100	 mov r0, @cnoclr
+	156565	
+054637	001170	 mov r0, chpos
+	156567	
+054641	001270	 mov VMEM + ((NLINES-1) * LSIZE), r0
+	146300	
+054643	001100	 mov r0, @cbase
+	156556	
+054645	001100	 mov r0, @ocbase
+	156562	
+054647	001270	 mov CSLOC, r0 ; get character set location
+	172506	
+054651	001100	 mov r0, @csloc
+	156560	
+054653	001000	 b ret
+	014136	
+054655		
+	000700	vcr: clr r0 ; perform a carriage return
+054656	001100	 mov r0, @coffs
+	156557	
+054660	001100	 mov r0, @chpos
+	156567	
+054662	001200	 mov @cbase, r0
+	156556	
+054664	001670	 and ~(NWPS-1), r0
+	177740	
+054666	001100	 mov r0, @cbase
+	156556	
+054670	001000	 b vscchg
+	000747	
+054672		
+	000004	vesc: jsr r4, vgchr ; process an ESC command
+	000330	
+	000570	
+054675	001670	 and 177, r0
+	000177	
+054677	001470	 sub 'A, r0
+	000101	
+054701	001570	 cmp ecmdtab-cmdtab, r0
+	000032	
+054703	001001	 blge ret
+	014106	
+054705	001370	 add cmdtab, r0
+	154711	
+054707	000201	 mov r0, r1
+054710	001217	 mov @r1, pc
+054711		
+	155256	cmdtab: vcup ; A
+054712	155304	 vcdn ; B
+054713	155332	 vcrt ; C
+054714	155375	 vclf ; D
+054715	154750	 vclr ; E
+054716	171013	 ret ; F
+054717	171013	 ret ; G
+054720	154743	 vhome ; H
+054721	155502	 vrlf ; I
+054722	155037	 vkeos ; J
+054723	155072	 vkeol ; K
+054724	156150	 viln ; L
+054725	156236	 vdln ; M
+054726	171013	 ret ; N
+054727	171013	 ret ; O
+054730	156330	 vichr ; P
+054731	156443	 vdchr ; Q
+054732	171013	 ret ; R
+054733	171013	 ret ; S
+054734	171013	 ret ; T
+054735	171013	 ret ; U
+054736	171013	 ret ; V
+054737	171013	 ret ; W
+054740	171013	 ret ; X
+054741	154762	 vpos ; Y
+054742	171013	 ret ; Z
+054743		ecmdtab = .
+		
+	000722	vhome: clr r2 ; home the cursor
+054744	001271	 mov NLINES-1, r1
+	000027	
+054746	001000	 b vcmov
+	000221	
+054750		
+	000004	vclr: jsr r5, call ; home and clear
+	000760	
+	000756	
+054753	154743	 vhome
+054754	001270	 mov 1, r0
+	000001	
+054756	001100	 mov r0, @cnoclr
+	156565	
+054760	001000	 b vclrsc
+	001127	
+054762		
+	000004	vpos: jsr r4, vgchr ; cursor positioning
+	000330	
+	000570	
+054765	001670	 and 177, r0
+	000177	
+054767	001470	 sub SPACE, r0
+	000040	
+054771	000040	 neg r0
+054772	001370	 add NLINES-1, r0
+	000027	
+054774	000201	 mov r0, r1
+054775	000004	 jsr r4, vgchr
+	000330	
+	000570	
+055000	001670	 and 177, r0
+	000177	
+055002	001470	 sub SPACE, r0
+	000040	
+055004	000202	 mov r0, r2
+055005	001571	 cmp NLINES, r1
+	000030	
+055007	001001	 blge ret
+	014002	
+055011	001572	 cmp NCPL, r2
+	000125	
+055013	001001	 blge ret
+	013776	
+055015	001000	 b vcmov
+	000152	
+055017		
+	001201	vtab: mov @chpos, r1 ; process a tab
+	156567	
+055021	001671	 and 7, r1
+	000007	
+055023	000041	 neg r1
+055024	001371	 add 8., r1
+	000010	
+055026	000004	vt.1: jsr r5, call
+	000760	
+	000756	
+055031	155332	 vcrt
+055032	000021	 dec r1
+055033	001054	 bnze vt.1
+	000006	
+055035	001000	 b ret
+	013754	
+055037		
+	000700	vkeos: clr r0 ; clear from cursor to end of screen
+055040	000004	 jsr r5, vpbase ; first figure out physical address
+	000730	
+	001603	
+055043	000204	 mov r0, r4 ; of logical bottom of screen, then
+055044	001200	 mov @cbase, r0 ; number of words from bottom of
+	156556	
+055046	001670	 and ~(NWPS-1), r0 ; screen to just before line containing
+	177740	
+055050	000004	 jsr r5, vlbase ; the cursor. Clear this area, then
+	000730	
+	001622	
+055053	001271	 mov 177777, r1 ; call vkeol to clear the line
+	177777	
+055055	000200	 tst r0 ; containing the cursor
+055056	001004	vks.1: bze vkeol
+	000012	
+055060	001574	 cmp VMEM + VSIZE, r4
+	150000	
+055062	001011	 bllt vks.2
+	000002	
+055064	001474	 sub VSIZE, r4
+	020000	
+055066	001141	vks.2: mov r1, @r4+
+055067	000020	 dec r0
+055070	001040	 b vks.1
+	000013	
+055072		
+	001201	vkeol: mov @coffs, r1 ; clear from the cursor to end of line
+	156557	
+055074	001371	 add kmsktb, r1 ; figure out which bits to clear in the
+	155151	
+055076	001210	 mov @r1, r0 ; word containing the LHS of the cursor,
+055077	001271	 mov 177777, r1 ; then process each scan line, first
+	177777	
+055101	001274	 mov NWPS-1, r4 ; treating the word with the LHS of
+	000037	
+055103	001203	 mov @cbase, r3 ; the cursor, and then clearing the
+	156556	
+055105	001275	 mov NSPL, r5 ; rest of the words in the line.
+	000012	
+055107	001163	vkl.1: mov r3, @sp+
+055110	001232	 mov @r3, r2
+055111	000032	 com r2
+055112	000602	 and r0, r2
+055113	000032	 com r2
+055114	001132	 mov r2, @r3
+055115	000013	vkl.2: inc r3
+055116	001163	 mov r3, @sp+
+055117	000643	 and r4, r3
+055120	001004	 bze vkl.3
+	000004	
+055122	001263	 mov @-sp, r3
+055123	001131	 mov r1, @r3
+055124	001040	 b vkl.2
+	000010	
+055126	001263	vkl.3: mov @-sp, r3
+055127	001263	 mov @-sp, r3
+055130	001373	 add NWPS, r3
+	000040	
+055132	001573	 cmp VMEM + VSIZE, r3
+	150000	
+055134	001011	 bllt vkl.4
+	000002	
+055136	001473	 sub VSIZE, r3
+	020000	
+055140	000025	vkl.4: dec r5
+055141	001055	 bge vkl.1
+	000033	
+055143	001270	 mov 1, r0
+	000001	
+055145	001100	 mov r0, @cnoclr
+	156565	
+055147	001000	 b vscchg
+	000470	
+055151		
+	000000	kmsktb: .word 000000, 000001, 000003, 000007
+	000001	
+	000003	
+	000007	
+055155	000017	 .word 000017, 000037, 000077, 000177
+	000037	
+	000077	
+	000177	
+055161	000377	 .word 000377, 000777, 001777, 003777
+	000777	
+	001777	
+	003777	
+055165	007777	 .word 007777, 017777, 037777, 077777
+	017777	
+	037777	
+	077777	
+055171		
+		;
+		; move the cursor to horiz (in r2), vert (in r1)
+		;
+		; Bounds checking must be done by the caller.
+		;
+		
+	001102	vcmov: mov r2, @chpos
+	156567	
+055173	000004	 jsr r5, call
+	000760	
+	000756	
+055176	155723	 vparm
+055177	001101	 mov r1, @coffs
+	156557	
+055201	001102	 mov r2, @cbase
+	156556	
+055203	001000	 b vscchg
+	000434	
+055205		
+		;
+		; display the cursor
+		;
+		
+	001273	vcdisp: mov SPACE, r3 ; cursor = space
+	000040	
+055207	001271	 mov 1, r1
+	000001	
+055211	001101	 mov r1, @cflg
+	156561	
+055213	001201	 mov @ocoffs, r1
+	156563	
+055215	001202	 mov @ocbase, r2
+	156562	
+055217	001000	 b vchbo
+	000554	
+055221		
+	001200	vcclr: mov @cnoclr, r0
+	156565	
+055223	000200	 tst r0
+055224	001014	 bnze ret
+	013565	
+055226	000004	 jsr r5, vcdisp
+	000730	
+	001205	
+055231	001270	 mov 1, r0
+	000001	
+055233	001100	 mov r0, @cnoclr
+	156565	
+055235	001000	 b ret
+	013554	
+055237		
+	001201	vccrs: mov @cchgd, r1 ; place a character at the
+	156564	
+055241	000211	 tst r1 ; current cursor position
+055242	001014	 bnze vcc.1
+	000003	
+055244	000031	 com r1
+055245	001101	 mov r1, @cnoclr
+	156565	
+055247	000203	vcc.1: mov r0, r3
+055250	001201	 mov @coffs, r1
+	156557	
+055252	001202	 mov @cbase, r2
+	156556	
+055254	001000	 b vchbo
+	000517	
+055256		
+		;
+		; Move the cursor up, down, left, and right, without scrolling
+		;
+		
+	001200	vcup: mov @cbase, r0
+	156556	
+055260	000202	 mov r0, r2
+055261	000004	 jsr r5, vlbase
+	000730	
+	001622	
+055264	001570	 cmp LSIZE * (NLINES-1), r0
+	016300	
+055266	001001	 blge ret
+	013523	
+055270	001372	 add LSIZE, r2
+	000500	
+055272	001572	 cmp VMEM + VSIZE, r2
+	150000	
+055274	001011	 bllt vcu.1
+	000002	
+055276	001472	 sub VSIZE, r2
+	020000	
+055300	001102	vcu.1: mov r2, @cbase
+	156556	
+055302	001000	 b vscchg
+	000335	
+055304		
+	001200	vcdn: mov @cbase, r0
+	156556	
+055306	000202	 mov r0, r2
+055307	000004	 jsr r5, vlbase
+	000730	
+	001622	
+055312	001570	 cmp LSIZE, r0
+	000500	
+055314	001011	 bllt ret
+	013475	
+055316	001472	 sub LSIZE, r2
+	000500	
+055320	001572	 cmp VMEM, r2
+	130000	
+055322	001001	 blge vcd.1
+	000002	
+055324	001372	 add VSIZE, r2
+	020000	
+055326	001102	vcd.1: mov r2, @cbase
+	156556	
+055330	001000	 b vscchg
+	000307	
+055332		
+	001200	vcrt: mov @cbase, r0
+	156556	
+055334	001201	 mov @coffs, r1
+	156557	
+055336	000202	 mov r0, r2
+055337	001672	 and NWPS-1, r2
+	000037	
+055341	001572	 cmp NWPS-1, r2
+	000037	
+055343	001005	 blt vcr.1
+	000004	
+055345		
+	001571	 cmp 4, r1
+	000004	
+055347		
+		
+		
+	001016	 bgt ret
+	013442	
+055351		
+	001371	vcr.1: add 6, r1
+	000006	
+055353		
+		
+		
+	001571	 cmp 16., r1
+	000020	
+055355	001005	 blt vcr.2
+	000003	
+055357	001471	 sub 16., r1
+	000020	
+055361	000010	 inc r0
+055362	001100	vcr.2: mov r0, @cbase
+	156556	
+055364	001101	 mov r1, @coffs
+	156557	
+055366	001200	 mov @chpos, r0
+	156567	
+055370	000010	 inc r0
+055371	001100	 mov r0, @chpos
+	156567	
+055373	001000	 b vscchg
+	000244	
+055375		
+	001200	vclf: mov @coffs, r0
+	156557	
+055377		
+	001470	 sub 6, r0
+	000006	
+055401		
+		
+		
+	001015	 bge vcl.1
+	000014	
+055403	001370	 add 16., r0
+	000020	
+055405	001201	 mov @cbase, r1
+	156556	
+055407	000212	 mov r1, r2
+055410	001672	 and NWPS-1, r2
+	000037	
+055412	001004	 bze ret
+	013377	
+055414	000021	 dec r1
+055415	001101	 mov r1, @cbase
+	156556	
+055417	001100	vcl.1: mov r0, @coffs
+	156557	
+055421	001200	 mov @chpos, r0
+	156567	
+055423	000020	 dec r0
+055424	001100	 mov r0, @chpos
+	156567	
+055426	001000	 b vscchg
+	000211	
+055430		
+		; Perform line feed function, with scrolling, if necessary
+		
+	001200	vlf: mov @cbase, r0
+	156556	
+055432	000201	 mov r0, r1
+055433	001471	 sub LSIZE, r1
+	000500	
+055435	001571	 cmp VMEM, r1
+	130000	
+055437	001001	 blge vlf.1
+	000002	
+055441	001371	 add VSIZE, r1
+	020000	
+055443	001101	vlf.1: mov r1, @cbase
+	156556	
+055445	000004	 jsr r5, vlbase
+	000730	
+	001622	
+055450	001570	 cmp LSIZE, r0
+	000500	
+055452	001001	 blge vscchg
+	000165	
+055454	000004	 jsr r5, call
+	000760	
+	000756	
+055457	156124	 vclrlc
+055460	001201	 mov @scroll, r1
+	156555	
+055462	001471	 sub NSPL, r1
+	000012	
+055464	001671	 and 377, r1
+	000377	
+055466	001101	 mov r1, @scroll
+	156555	
+055470	001701	 xor @vidflg, r1
+	156566	
+055472	001101	 mov r1, @SCRREG
+	177770	
+055474	000004	 jsr r5, call
+	000760	
+	000756	
+055477	155554	 vclgap
+055500	001000	 b vscchg
+	000137	
+055502		
+		; Perform reverse line feed function, with scrolling
+		
+	001200	vrlf: mov @cbase, r0
+	156556	
+055504	000201	 mov r0, r1
+055505	001371	 add LSIZE, r1
+	000500	
+055507	001571	 cmp VMEM + VSIZE, r1
+	150000	
+055511	001011	 bllt vrl.1
+	000002	
+055513	001471	 sub VSIZE, r1
+	020000	
+055515	001101	vrl.1: mov r1, @cbase
+	156556	
+055517	000004	 jsr r5, vlbase
+	000730	
+	001622	
+055522	001570	 cmp LSIZE * (NLINES-1), r0
+	016300	
+055524	001011	 bllt vscchg
+	000113	
+055526	000004	 jsr r5, call
+	000760	
+	000756	
+055531	156124	 vclrlc
+055532	001201	 mov @scroll, r1
+	156555	
+055534	001371	 add NSPL, r1
+	000012	
+055536	001671	 and 377, r1
+	000377	
+055540	001101	 mov r1, @scroll
+	156555	
+055542	001701	 xor @vidflg, r1
+	156566	
+055544	001101	 mov r1, @SCRREG
+	177770	
+055546	000004	 jsr r5, call
+	000760	
+	000756	
+055551	155641	 vscchg
+055552	001040	 b vclgap
+	177777	
+055554		
+		; Clear the "gap" between the first and last lines of the logical
+		; screen.
+		
+	001270	vclgap: mov NLINES * LSIZE, r0
+	017000	
+055556	000004	 jsr r5, vpbase
+	000730	
+	001603	
+055561	000204	 mov r0, r4
+055562	001271	 mov VSIZE - (NLINES * LSIZE), r1
+	001000	
+055564	001270	 mov 177777, r0
+	177777	
+055566	000211	 tst r1
+055567	001004	vclg.1: bze ret
+	013222	
+055571	001574	 cmp VMEM + VSIZE, r4
+	150000	
+055573	001011	 bllt vclg.2
+	000002	
+055575	001474	 sub VSIZE, r4
+	020000	
+055577	001140	vclg.2: mov r0, @r4+
+055600	000021	 dec r1
+055601	001040	 b vclg.1
+	000013	
+055603		
+	001201	vpbase: mov @scroll, r1 ; convert logical cursor base to physical
+	156555	
+055605	000115	 sll 2, r1
+055606	000115	 sll 2, r1
+055607	000111	 sll 1, r1
+055610	000310	 add r1, r0
+055611	001370	 add VMEM, r0
+	130000	
+055613	001570	 cmp VMEM + VSIZE, r0
+	150000	
+055615	001011	 bllt vpb.1
+	000002	
+055617	001470	 sub VSIZE, r0
+	020000	
+055621	000257	vpb.1: jmp r5
+055622		
+	001201	vlbase: mov @scroll, r1 ; convert physical cursor base to logical
+	156555	
+055624	000115	 sll 2, r1
+055625	000115	 sll 2, r1
+055626	000111	 sll 1, r1
+055627	000410	 sub r1, r0
+055630	001570	 cmp VMEM, r0
+	130000	
+055632	001001	 blge vlb.1
+	000002	
+055634	001370	 add VSIZE, r0
+	020000	
+055636	001470	vlb.1: sub VMEM, r0
+	130000	
+055640	000257	 jmp r5
+055641		
+	001200	vscchg: mov @ocbase, r0 ; check whether the cursor has changed position
+	156562	
+055643	001201	 mov @ocoffs, r1
+	156563	
+055645	001500	 cmp @cbase, r0
+	156556	
+055647	001014	 bneq vsc.1
+	000004	
+055651	001501	 cmp @coffs, r1
+	156557	
+055653	001004	 beq ret
+	013136	
+055655	001270	vsc.1: mov 1, r0
+	000001	
+055657	001100	 mov r0, @cchgd
+	156564	
+055661	001000	 b ret
+	013130	
+055663		
+		;
+		; redisplay cursor, if necessary
+		;
+		
+	001200	vcrdsp: mov @cchgd, r0
+	156564	
+055665	000200	 tst r0
+055666	001004	 bze ret
+	013123	
+055670	000700	 clr r0
+055671	001100	 mov r0, @cchgd
+	156564	
+055673	001200	 mov @cnoclr, r0
+	156565	
+055675	000200	 tst r0
+055676	001004	 bze vcrd.1
+	000005	
+055700	000700	 clr r0
+055701	001100	 mov r0, @cnoclr
+	156565	
+055703	001000	 b vcrd.2
+	000004	
+055705	000004	vcrd.1: jsr r5, call
+	000760	
+	000756	
+055710	155205	 vcdisp
+055711	001274	vcrd.2: mov cbase, r4
+	156556	
+055713	001275	 mov ocbase, r5
+	156562	
+055715	001240	 mov @r4+, r0
+055716	001150	 mov r0, @r5+
+055717	001240	 mov @r4+, r0
+055720	001150	 mov r0, @r5+
+055721	001040	 b vcdisp
+	000515	
+055723		
+		;
+		; given vert in r1, horiz in r2, compute address of
+		; leftmost bottom word of character into
+		; r2, and number of bits to shift into r1.
+		;
+		
+	000111	vparm: sll 1, r1 ; mult r1 by NSPL
+055724	001161	 mov r1, @sp+
+055725	000115	 sll 2, r1
+055726	001361	 add @-sp, r1
+055727	000111	 sll 1, r1 ; mult by 32.
+055730	000115	 sll 2, r1
+055731	000115	 sll 2, r1
+055732	001161	 mov r1, @sp+ ; save for later
+055733		
+		
+		
+	000112	 sll 1, r2
+055734		
+	001162	 mov r2, @sp+ ; mult r2 by 6
+055735		
+		
+		
+	000112	 sll 1, r2
+055736	001362	 add @-sp, r2
+055737		
+		
+		
+	000711	 clr r1 ; divide r2by16.
+055740	000176	 sarc 2, r2 ; put rem in r1
+055741	000165	 rrc 2, r1
+055742	000176	 sarc 2, r2
+055743	000165	 rrc 2, r1
+055744	000101	 swap 1, r1
+055745	000155	 sar 2, r1
+055746	000155	 sar 2, r1
+055747	001362	 add @-sp, r2 ; add in rest of
+055750	001203	 mov @scroll, r3 ; offset
+	156555	
+055752	000117	 sll 2, r3
+055753	000117	 sll 2, r3
+055754	000113	 sll 1, r3
+055755	000332	 add r3, r2
+055756	001572	 cmp VSIZE, r2
+	020000	
+055760	001005	 blt vp.1
+	000002	
+055762	001472	 sub VSIZE, r2
+	020000	
+055764	001372	vp.1: add VMEM, r2
+	130000	
+055766	001000	 b ret2
+	013010	
+055770		
+		;
+		; put char in r0 on screen at positin r1, r2
+		;
+		
+	000203	vchxy: mov r0, r3 ; save char code
+055771	000004	 jsr r5, call
+	000760	
+	000756	
+055774	155723	 vparm
+055775	001163	vchbo: mov r3, @sp+
+055776	000117	 sll 2, r3
+055777	001363	 add @-sp, r3
+056000	001303	 add @csloc, r3
+	156560	
+056002	001161	 mov r1, @sp+ ; save shift count
+056003	000214	 mov r1, r4
+056004	001275	 mov NSPL, r5 ; scan line count
+	000012	
+056006		;
+		; the following code has:
+		; r0, r1: two word data to be shifted
+		; r2: pointer into video mmory
+		; r3: pointer into char table
+		; r4: shift count
+		; r5: scan line count
+		; IDEA: first clear out old stuff,
+		; then XOR in new data. If cflg .ne.0, skip
+		; the clearing and just XOR.
+		;
+	001200	vc.1: mov @cflg, r0
+	156561	
+056010	000200	 tst r0
+056011	001014	 bnze vc.7
+	000015	
+056013	000241	 mov r4, r1
+056014	000111	 sll 1, r1
+056015	001371	 add msktab, r1
+	156571	
+056017	001210	 mov @r1, r0
+056020	000011	 inc r1
+056021	001211	 mov @r1, r1
+056022	001620	vc.3: and @r2, r0
+056023	001120	 mov r0, @r2
+056024	000012	 inc r2
+056025	001621	 and @r2, r1
+056026	001121	 mov r1, @r2
+056027	000022	 dec r2 ; stuff cleared
+056030	001230	vc.7: mov @r3, r0 ; fetch scan line
+056031	000251	 mov r5, r1 ; see if odd/even
+056032	000171	 sarc 1, r1
+056033	001011	 bnc vc.4
+	000002	
+056035	000100	 swap 1, r0 ; use high half
+056036	000013	 inc r3 ; increment pointer
+056037	001670	vc.4: and 177, r0
+	000177	
+056041		
+	000150	 sar 1, r0
+056042		
+	000711	 clr r1 ; prepare to shift
+056043	001374	 add 2, r4 ; adjust shift count
+	000002	
+056045	001474	vc.5: sub 2, r4
+	000002	
+056047	001004	 bze vc.6
+	000010	
+056051	001013	 bmi vc.8
+	000004	
+056053	000134	 sllc 2, r0
+056054	000125	 rlc 2, r1
+056055	001040	 b vc.5
+	000011	
+056057	000171	vc.8: sarc 1, r1
+056060	000160	 rrc 1, r0
+056061	001720	vc.6: xor @r2, r0 ; store new stuff
+056062	001120	 mov r0, @r2
+056063	000012	 inc r2
+056064	001721	 xor @r2, r1
+056065	001121	 mov r1, @r2
+056066	001264	 mov @-sp, r4
+056067	001164	 mov r4, @sp+
+056070	001372	 add 37, r2 ; new scan line
+	000037	
+056072	001572	 cmp VMEM+VSIZE, r2
+	150000	
+056074	001011	 bllt vc.9
+	000002	
+056076	001472	 sub VSIZE, r2
+	020000	
+056100	000025	vc.9: dec r5
+056101	001054	 bnze vc.1 ; more lines to do
+	000074	
+056103	001260	 mov @-sp, r0 ; pop shift count
+056104	000700	 clr r0
+056105	001100	 mov r0, @cflg
+	156561	
+056107	001000	 b ret
+	012702	
+056111		
+		;
+		; fast way to clear entire screen
+		;
+		
+	001274	vclrsc: mov VMEM, r4
+	130000	
+056113	001270	 mov 177777, r0
+	177777	
+056115	001140	vcs.1: mov r0, @r4+
+056116	001574	 cmp VMEM+VSIZE, r4
+	150000	
+056120	001051	 bllt vcs.1
+	000004	
+056122	001000	 b ret
+	012667	
+056124		
+		;
+		; fast way to clear line containing cursor
+		;
+		
+	001204	vclrlc: mov @cbase, r4
+	156556	
+056126	001674	 and 177740, r4
+	177740	
+056130	001271	 mov LSIZE, r1
+	000500	
+056132	001270	 mov 177777, r0
+	177777	
+056134	001140	vclc.1: mov r0, @r4+
+056135	001574	 cmp VMEM+VSIZE, r4
+	150000	
+056137	001011	 bllt vclc.2
+	000002	
+056141	001474	 sub VSIZE, r4
+	020000	
+056143	000021	vclc.2: dec r1
+056144	001054	 bnze vclc.1
+	000011	
+056146	001000	 b ret
+	012643	
+056150		
+		; Insert/Delete Line Functions
+		
+	000004	viln: jsr r5, call
+	000760	
+	000756	
+056153	155221	 vcclr
+056154	001200	 mov @cbase, r0
+	156556	
+056156	001670	 and ~(NWPS-1), r0
+	177740	
+056160	000004	 jsr r5, vlbase
+	000730	
+	001622	
+056163	000202	 mov r0, r2
+056164	000700	 clr r0
+056165	000004	 jsr r5, vpbase
+	000730	
+	001603	
+056170	000204	 mov r0, r4
+056171	001271	 mov VMEM + VSIZE, r1
+	150000	
+056173	001273	 mov VSIZE, r3
+	020000	
+056175	001370	 add LSIZE, r0
+	000500	
+056177	000510	 cmp r1, r0
+056200	001011	 bllt vil.1
+	000001	
+056202	000430	 sub r3, r0
+056203	000205	vil.1: mov r0, r5
+056204	000222	 tst r2
+056205	001014	vil.2: bnze vil.9
+	000012	
+056207	000004	 jsr r5, call
+	000760	
+	000756	
+056212	156124	 vclrlc
+056213	001270	 mov 1, r0
+	000001	
+056215	001100	 mov r0, @cnoclr
+	156565	
+056217	001040	 b vscchg
+	000357	
+056221	001250	vil.9: mov @r5+, r0
+056222	001140	 mov r0, @r4+
+056223	000515	 cmp r1, r5
+056224	001011	 bllt vil.3
+	000001	
+056226	000435	 sub r3, r5
+056227	000514	vil.3: cmp r1, r4
+056230	001011	 bllt vil.4
+	000001	
+056232	000434	 sub r3, r4
+056233	000022	vil.4: dec r2
+056234	001040	 b vil.2
+	000030	
+056236		
+	001200	vdln: mov @cbase, r0
+	156556	
+056240	001670	 and ~(NWPS-1), r0
+	177740	
+056242	000202	 mov r0, r2
+056243	000004	 jsr r5, vlbase
+	000730	
+	001622	
+056246	000223	 mov r2, r3
+056247	001372	 add LSIZE-1, r2
+	000477	
+056251	000023	 dec r3
+056252	001274	 mov VMEM, r4
+	130000	
+056254	001275	 mov VSIZE, r5
+	020000	
+056256	000543	 cmp r4, r3
+056257	001015	 bge vdl.1
+	000001	
+056261	000353	 add r5, r3
+056262	000200	vdl.1: tst r0
+056263	001004	vdl.2: bze vdl.5
+	000017	
+056265	001231	 mov @r3, r1
+056266	001121	 mov r1, @r2
+056267	000022	 dec r2
+056270	000542	 cmp r4, r2
+056271	001001	 blge vdl.3
+	000001	
+056273	000352	 add r5, r2
+056274	000023	vdl.3: dec r3
+056275	000543	 cmp r4, r3
+056276	001001	 blge vdl.4
+	000001	
+056300	000353	 add r5, r3
+056301	000020	vdl.4: dec r0
+056302	001040	 b vdl.2
+	000020	
+056304	001202	vdl.5: mov @cbase, r2
+	156556	
+056306	000700	 clr r0
+056307	000004	 jsr r5, vpbase
+	000730	
+	001603	
+056312	001100	 mov r0, @cbase
+	156556	
+056314	000004	 jsr r5, call
+	000760	
+	000756	
+056317	156124	 vclrlc
+056320	001102	 mov r2, @cbase
+	156556	
+056322	001270	 mov 1, r0
+	000001	
+056324	001100	 mov r0, @cnoclr
+	156565	
+056326	001040	 b vscchg
+	000466	
+056330		
+		; Insert/Delete Character Functions
+		
+	000004	vichr: jsr r5, call
+	000760	
+	000756	
+056333	155205	 vcdisp
+056334	001201	 mov @coffs, r1
+	156557	
+056336	001371	 add kmsktb, r1
+	155151	
+056340	001215	 mov @r1, r5
+056341	001273	 mov NSPL, r3
+	000012	
+056343	001202	 mov @cbase, r2
+	156556	
+056345	000224	vic.2: mov r2, r4
+056346	000014	 inc r4
+056347	001220	 mov @r2, r0
+056350	000201	 mov r0, r1
+056351	000651	 and r5, r1
+056352	001161	 mov r1, @sp+
+056353	000035	 com r5
+056354	000650	 and r5, r0
+056355	000035	 com r5
+056356	000711	 clr r1
+056357	000134	 sllc 2, r0
+056360	000125	 rlc 2, r1
+056361	000134	 sllc 2, r0
+056362	000125	 rlc 2, r1
+056363	000134	 sllc 2, r0
+056364	000125	 rlc 2, r1
+056365		
+		
+		
+		
+	001760	 xor @-sp, r0
+056366	001120	 mov r0, @r2
+056367	001162	 mov r2, @sp+
+056370	000242	vic.1: mov r4, r2
+056371	001672	 and NWPS-1, r2
+	000037	
+056373	001004	 bze vic.4
+	000022	
+056375	000101	 swap 1, r1
+056376		
+		
+		
+	000115	 sll 2, r1
+056377		
+	000722	 clr r2
+056400	001240	 mov @r4+, r0
+056401	000024	 dec r4
+056402	000135	 sllc 2, r1
+056403	000124	 rlc 2, r0
+056404	000126	 rlc 2, r2
+056405	000135	 sllc 2, r1
+056406	000124	 rlc 2, r0
+056407	000126	 rlc 2, r2
+056410	000135	 sllc 2, r1
+056411	000124	 rlc 2, r0
+056412	000126	 rlc 2, r2
+056413		
+		
+		
+		
+		
+	001140	 mov r0, @r4+
+056414	000221	 mov r2, r1
+056415	001040	 b vic.1
+	000026	
+056417	001262	vic.4: mov @-sp, r2
+056420	000023	 dec r3
+056421	001004	 bze vic.3
+	000012	
+056423	001372	 add NWPS, r2
+	000040	
+056425	001572	 cmp VMEM + VSIZE, r2
+	150000	
+056427	001051	 bllt vic.2
+	000063	
+056431	001472	 sub VSIZE, r2
+	020000	
+056433	001040	 b vic.2
+	000067	
+056435	001270	vic.3: mov 1, r0
+	000001	
+056437	001100	 mov r0, @cnoclr
+	156565	
+056441	001040	 b vscchg
+	000601	
+056443		
+	001201	vdchr: mov @coffs, r1
+	156557	
+056445	001371	 add kmsktb, r1
+	155151	
+056447	001215	 mov @r1, r5
+056450	001274	 mov NSPL, r4
+	000012	
+056452	001202	 mov @cbase, r2
+	156556	
+056454	001271	vdc.4: mov 177777, r1
+	177777	
+056456	000223	 mov r2, r3
+056457	001673	 and ~(NWPS-1), r3
+	177740	
+056461	001773	 xor NWPS-1, r3
+	000037	
+056463	000532	vdc.2: cmp r3, r2
+056464	001004	 beq vdc.1
+	000024	
+056466	001162	 mov r2, @sp+
+056467	001230	 mov @r3, r0
+056470	000722	 clr r2
+056471	000175	 sarc 2, r1
+056472	000164	 rrc 2, r0
+056473	000166	 rrc 2, r2
+056474	000175	 sarc 2, r1
+056475	000164	 rrc 2, r0
+056476	000166	 rrc 2, r2
+056477	000175	 sarc 2, r1
+056500	000164	 rrc 2, r0
+056501	000166	 rrc 2, r2
+056502		
+		
+		
+		
+		
+	001130	 mov r0, @r3
+056503	000102	 swap 1, r2
+056504		
+		
+		
+	000156	 sar 2, r2
+056505		
+	000221	 mov r2, r1
+056506	000023	 dec r3
+056507	001262	 mov @-sp, r2
+056510	001040	 b vdc.2
+	000026	
+056512	001162	vdc.1: mov r2, @sp+
+056513	001230	 mov @r3, r0
+056514	000202	 mov r0, r2
+056515	000650	 and r5, r0
+056516	000175	 sarc 2, r1
+056517	000166	 rrc 2, r2
+056520	000175	 sarc 2, r1
+056521	000166	 rrc 2, r2
+056522	000175	 sarc 2, r1
+056523	000166	 rrc 2, r2
+056524		
+		
+		
+		
+	000035	 com r5
+056525	000652	 and r5, r2
+056526	000035	 com r5
+056527	000702	 xor r0, r2
+056530	001132	 mov r2, @r3
+056531	001262	 mov @-sp, r2
+056532	000024	 dec r4
+056533	001004	 bze vdc.3
+	000012	
+056535	001372	 add NWPS, r2
+	000040	
+056537	001572	 cmp VMEM + VSIZE, r2
+	150000	
+056541	001051	 bllt vdc.4
+	000066	
+056543	001372	 add VSIZE, r2
+	020000	
+056545	001040	 b vdc.4
+	000072	
+056547	001270	vdc.3: mov 1, r0
+	000001	
+056551	001100	 mov r0, @cnoclr
+	156565	
+056553	001040	 b vscchg
+	000713	
+056555		
+		; global video data
+		
+	000000	scroll: .word 0 ; current scroll counter
+056556	000000	cbase: .word 0 ; cursor base
+056557	000000	coffs: .word 0 ; offset in bits
+056560	000000	csloc: .word 0 ; loc of cs table
+056561	000000	cflg: .word 0 ; clear or not?
+056562	000000	ocbase: .word 0 ; old cursor base
+056563	000000	ocoffs: .word 0 ; old cursor offset
+056564	000000	cchgd: .word 0 ; has cursor position changed?
+056565	000000	cnoclr: .word 0 ; need to clear old cursor
+056566	000000	vidflg: .word 0 ; video status flags
+056567	000000	chpos: .word 0 ; cursor horizontal position
+056570	000000	blink: .word 0 ; cursor blink counter
+056571		
+		
+	177700	msktab: .word 177700, 177777, 177601, 177777
+	177777	
+	177601	
+	177777	
+056575	177403	 .word 177403, 177777, 177007, 177777
+	177777	
+	177007	
+	177777	
+056601	176017	 .word 176017, 177777, 174037, 177777
+	177777	
+	174037	
+	177777	
+056605	170077	 .word 170077, 177777, 160177, 177777
+	177777	
+	160177	
+	177777	
+056611	140377	 .word 140377, 177777, 100777, 177777
+	177777	
+	100777	
+	177777	
+056615	001777	 .word 001777, 177777, 003777, 177776
+	177777	
+	003777	
+	177776	
+056621	007777	 .word 007777, 177774, 017777, 177770
+	177774	
+	017777	
+	177770	
+056625	037777	 .word 037777, 177760, 077777, 177760
+	177760	
+	077777	
+	177760	
+056631		
+
+Symbol Table
+
+B1200    =	000140	B134.5   =	000340	B150     =	000300	
+B2400    =	000100	B300     =	000240	B4800    =	000040	
+B600     =	000200	B9600    =	000000	BEL      =	000007	
+BLKCNT   =	000372	BS       =	000010	CR       =	000015	
+CSLOC    =	072506	DATA0    =	077763	DATA1    =	077765	
+DC1      =	000021	DEL      =	000177	ESC      =	000033	
+IEN      =	000400	INTLAC   =	001000	INVERT   =	000400	
+LDADDR   =	050000	LF       =	000012	LSIZE    =	000500	
+NCPL     =	000125	NDB1     =	000001	NDB2     =	000002	
+NLINES   =	000030	NPB      =	000010	NSB      =	000004	
+NSPL     =	000012	NWPS     =	000040	ODA      =	000002	
+POE      =	000020	RFE      =	000010	ROR      =	000004	
+RPE      =	000020	SCRREG   =	077770	SIVEC0   =	003004	
+SIVEC1   =	003014	SOVEC0   =	003010	SOVEC1   =	003020	
+SPACE    =	000040	STAT0    =	077762	STAT1    =	077764	
+TAB      =	000011	TBMT     =	000001	VMEM     =	030000	
+VSIZE    =	020000	blink    =	056570	call     =	070756	
+cbase    =	056556	cchgd    =	056564	cflg     =	056561	
+chpos    =	056567	cmdtab   =	054711	cnoclr   =	056565	
+coffs    =	056557	csloc    =	056560	ecmdtab  =	054743	
+gch.1    =	050143	gchr     =	050130	gchr0    =	050122	
+gchr1    =	050126	ge.1     =	050307	getbuf   =	050271	
+idl.1    =	054471	idl.2    =	054450	idle     =	054412	
+init0    =	050045	init1    =	050052	intr     =	050002	
+iret     =	050027	ischr    =	050112	ischr0   =	050104	
+ischr1   =	050110	itable   =	050041	kmsktb   =	055151	
+load     =	071215	loop     =	054404	msktab   =	056571	
+ocbase   =	056562	ocoffs   =	056563	pchr     =	050071	
+pchr0    =	050057	pchr1    =	050065	pu.1     =	050261	
+putbuf   =	050246	ret      =	071013	ret0     =	071010	
+ret2     =	071000	scroll   =	056555	sibuf0   =	050326	
+sibuf1   =	050354	siint    =	050164	siint0   =	050152	
+siint1   =	050160	sim      =	054503	sim.1    =	054526	
+size     =	050314	sobuf0   =	050341	sobuf1   =	052357	
+soint0   =	050201	soint1   =	050212	sos.1    =	050245	
+sostrt   =	050223	start    =	054362	vc.1     =	056006	
+vc.3     =	056022	vc.4     =	056037	vc.5     =	056045	
+vc.6     =	056061	vc.7     =	056030	vc.8     =	056057	
+vc.9     =	056100	vcc.1    =	055247	vcclr    =	055221	
+vccrs    =	055237	vcd.1    =	055326	vcdisp   =	055205	
+vcdn     =	055304	vchbo    =	055775	vchxy    =	055770	
+vcl.1    =	055417	vclc.1   =	056134	vclc.2   =	056143	
+vclf     =	055375	vclg.1   =	055567	vclg.2   =	055577	
+vclgap   =	055554	vclr     =	054750	vclrlc   =	056124	
+vclrsc   =	056111	vcmov    =	055171	vcr      =	054655	
+vcr.1    =	055351	vcr.2    =	055362	vcrd.1   =	055705	
+vcrd.2   =	055711	vcrdsp   =	055663	vcrt     =	055332	
+vcs.1    =	056115	vcu.1    =	055300	vcup     =	055256	
+vdc.1    =	056512	vdc.2    =	056463	vdc.3    =	056547	
+vdc.4    =	056454	vdchr    =	056443	vdl.1    =	056262	
+vdl.2    =	056263	vdl.3    =	056274	vdl.4    =	056301	
+vdl.5    =	056304	vdln     =	056236	vesc     =	054672	
+vgc.1    =	054605	vgchr    =	054570	vhome    =	054743	
+vic.1    =	056370	vic.2    =	056345	vic.3    =	056435	
+vic.4    =	056417	vichr    =	056330	vidflg   =	056566	
+vil.1    =	056203	vil.2    =	056205	vil.3    =	056227	
+vil.4    =	056233	vil.9    =	056221	viln     =	056150	
+vinit    =	054612	vkeol    =	055072	vkeos    =	055037	
+vkl.1    =	055107	vkl.2    =	055115	vkl.3    =	055126	
+vkl.4    =	055140	vks.1    =	055056	vks.2    =	055066	
+vlb.1    =	055636	vlbase   =	055622	vlf      =	055430	
+vlf.1    =	055443	vp.1     =	055764	vparm    =	055723	
+vpb.1    =	055621	vpbase   =	055603	vpos     =	054762	
+vrl.1    =	055515	vrlf     =	055502	vsc.1    =	055655	
+vscchg   =	055641	vt.1     =	055026	vtab     =	055017	
+

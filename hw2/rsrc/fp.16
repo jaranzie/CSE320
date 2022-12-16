@@ -1,0 +1,639 @@
+.incld	defs.16
+eret	=	ret
+;ret	=	171013
+;ret1	=	171004
+;eret	=	171047
+
+.	=	150000
+
+;
+; CP1600 floating point package
+;
+
+; store number @r0 to @r1 and convert from
+; internal representation
+;
+; entry - jsr r5, call; stf
+;
+stf:	mov	r0,r4
+	mov	r1,r5
+	mov	r4,r1
+	add	5,r1		; get exponent
+	mov	@r1,r2
+	add	200,r2
+	swap	1,r2
+	clrc
+	rrc	1,r2
+	mov	@r4+,r3
+	tst	r3		; sign
+	bpl	stf.1
+	add	100000,r2
+stf.1:	mov	@r4+,r3		; high fraction
+	and	177,r3
+	add	r3,r2
+	mov	r2,@r5+
+	mov	@r4+,r2
+	mov	r2,@r5+
+	mov	@dflg,r3	; double?
+	tst	r3
+	bze	ret
+	mov	@r4+,r2
+	mov	r2,@r5+
+	mov	@r4+,r2
+	mov	r2,@r5+
+	jmp	ret
+
+; load number @r0 to @r1 and convert to
+; internal representation
+;
+; entry - jsr r5,call;ldf
+;
+ldf:	mov	r0,r4
+	mov	r1,r5
+	clr	r1
+	mov	@r4+,r2
+	mov	r2,@sp+
+	tst	r2
+	bze	ldf.1
+	bmi	ldf.2
+	inc	r1
+	b	ldf.3
+ldf.2:	dec	r1
+ldf.3:	mov	r1,@r5+
+	and	177,r2
+	add	200,r2
+	b	ldf.4
+ldf.1:	mov	r1,@r5+
+ldf.4:	mov	r2,@r5+
+	mov	@r4+,r2
+	mov	r2,@r5+
+	mov	@dflg,r2
+	tst	r2
+	bze	ldf.5
+	mov	@r4+,r2
+	mov	r2,@r5+
+	mov	@r4+,r2
+	mov	r2,@r5+
+	b	ldf.6
+ldf.5:	clr	r2
+	mov	r2,@r5+
+	mov	r2,@r5+
+ldf.6:	mov	@-sp,r2
+	sll	1,r2
+	and	177400,r2
+	swap	1,r2
+	sub	200,r2
+	mov	r2,@r5+
+	jmp	ret
+
+; load and convert from integer to floating
+; from r0, r1 --> @r2
+;
+; entry - jsr r5,call; ldc
+;
+ldc:	mov	r2,r5
+	mov	1,r3
+	mov	r3,@r5+
+	mov	r0,@r5+
+	mov	@lflg,r0
+	tst	r0
+	bze	ldc.1
+	mov	r1,@r5+
+	clr	r0
+	mov	r0,@r5+
+	mov	r0,@r5+
+	mov	32.-8.,r0
+	mov	r0,@r5+
+	b	ldc.2
+ldc.1:	clr	r0
+	mov	r0,@r5+
+	mov	r0,@r5+
+	mov	r0,@r5+
+	mov	16.-8.,r0
+	mov	r0,@r5+
+ldc.2:	mov	r2,r1
+	jsr	r5,snorm
+	jmp	ret
+
+; fix up sign and normalize arg @r1
+;
+; entry - jsr r5, snorm
+;
+snorm:	mov	r5,@sp+
+	inc	r1
+	mov	@r1,r0
+	dec	r1
+	tst	r0
+	bpl	sno.1
+	mov	4,r0
+	add	r0,r1
+	mov	@r1,r2
+	neg	r2
+sno.2:	mov	r2,@r1
+	dec	r1
+	dec	r0
+	bze	sno.3
+	mov	@r1,r2
+	com	r2
+	adc	r2
+	b	sno.2
+sno.3:	mov	@r1,r2
+	neg	r2
+	mov	r2,@r1
+sno.1:	b	nor.4
+
+; normalize argument @r1
+;
+; entry - jsr r5,norm
+;
+norm:	mov	r5,@sp+
+nor.4:	inc	r1
+	mov	r1,r5
+	mov	r5,@sp+
+	mov	@r5+,r0
+	mov	@r5+,r1
+	mov	@r5+,r2
+	mov	@r5+,r3
+	mov	@r5+,r4
+	tst	r0
+	bnze	nor.1
+	tst	r1
+	bnze	nor.1
+	tst	r2
+	bnze	nor.1
+	tst	r3
+	bnze	nor.1
+	mov	@-sp,r5
+	dec	r5
+	clr	r0
+	mov	r0,@r5+
+	mov	@-sp,pc
+nor.1:	mov	r0,r5
+	and	177400,r5
+	bze	nor.2
+	clrc
+	rrc	1,r0
+	rrc	1,r1
+	rrc	1,r2
+	rrc	1,r3
+	inc	r4
+	b	nor.1
+nor.2:	mov	r0,r5
+	and	200,r5
+	bnze	nor.3
+	sllc	1,r3
+	rlc	1,r2
+	rlc	1,r1
+	rlc	1,r0
+	dec	r4
+	b	nor.2
+nor.3:	mov	@-sp,r5
+	mov	r0,@r5+
+	mov	r1,@r5+
+	mov	r2,@r5+
+	mov	r3,@r5+
+	mov	r4,@r5+
+	mov	@-sp,pc
+
+; store and convert from floating to integer
+; argument @r2 --> r0,r1
+;
+; entry jsr r5,call;stc
+;
+stc:	mov	r2,r4
+	mov	@r4+,r0
+	mov	r0,@sp+
+	mov	@r4+,r0
+	mov	@r4+,r1
+	mov	@r4+,r2
+	mov	@r4+,r3
+	mov	@r4+,r3
+stc.1:	cmp	48.-8.,r3
+	bge	stc.2
+	clrc
+	rrc	1,r0
+	rrc	1,r1
+	rrc	1,r2
+	inc	r3
+	b	stc.1
+stc.2:	bgt	eret
+	tst	r0
+	bnze	eret
+	mov	@lflg,r3
+	tst	r3
+	bze	stc.4
+	mov	@-sp,r3
+	tst	r3
+	bpl	stc.3
+	neg	r2
+	com	r1
+	adc	r1
+stc.3:	mov	r1,r0
+	mov	r2,r1
+	b	ret1
+stc.4:	tst	r1
+	bnze	eret
+	mov	@-sp,r3
+	tst	r3
+	bpl	stc.5
+	neg	r2
+stc.5:	mov	r2,r0
+	b	ret1
+
+; addition and subtraction routines
+; source @r0, dest @r1
+;
+; entry - jsr r5,call;addf
+;
+subf:	mov	r1,@sp+
+	jsr	r5,setab
+	mov	@asign,r0
+	neg	r0
+	mov	r0,@asign
+	b	add.0
+addf:	mov	r1,@sp+
+	jsr	r5,setab
+add.0:	mov	@bsign,r0
+	tst	r0
+	bze	reta
+	mov	@asign,r0
+	tst	r0
+	bze	retb
+	mov	@areg+4,r5
+	sub	@breg+4,r5
+	blt	add.1
+	beq	add.2
+	cmp	56.,r5
+	bgt	reta
+	mov	breg,r4
+	b	add.3
+add.1:	neg	r5
+	cmp	56.,r5
+	bgt	retb
+	mov	areg,r4
+add.3:	mov	@r4+,r0
+	mov	@r4+,r1
+	mov	@r4+,r2
+	mov	@r4+,r3
+	mov	r5,@sp+
+	add	@r4+,r5
+	dec	r4
+	mov	r5,@r4+
+	mov	@-sp,r5
+add.4:	clrc
+	rrc	1,r0
+	rrc	1,r1
+	rrc	1,r2
+	rrc	1,r3
+	dec	r5
+	bnze	add.4
+	sub	5,r4
+	mov	r0,@r4+
+	mov	r1,@r4+
+	mov	r2,@r4+
+	mov	r3,@r4+
+add.2:	mov	breg+4,r1
+	mov	areg+4,r2
+	mov	4,r0
+	mov	@bsign,r3
+	cmp	@asign,r3
+	bneq	add.5
+	clrc
+add.6:	dec	r1
+	mov	@r1,r3
+	adc	r3
+	bc	add.7
+	dec	r2
+	add	@r2,r3
+	mov	r3,@r1
+add.8:	dec	r0
+	bnze	add.6
+	b	add.13
+add.7:	dec	r2
+	add	@r2,r3
+	mov	r3,@r1
+	setc
+	b	add.8
+add.5:	setc
+add.12:	dec	r1
+	dec	r2
+	mov	@r1,r3
+	bc	add.9
+	sub	1,r3
+	bc	add.10
+add.9:	sub	@r2,r3
+	mov	r3,@r1
+add.11:	dec	r0
+	bneq	add.12
+	b	add.13
+add.10:	sub	@r2,r3
+	mov	r3,@r1
+	setc
+	b	add.11
+add.13:	dec	r1
+ckovr:	jsr	r5,snorm
+	mov	@bsign,r0
+	tst	r0
+	bze	retb
+	mov	@bexp,r0
+	cmp	177,r0
+	ble	cko.2
+ovflo:	dec	sp
+	jmp	eret
+cko.2:	cmp	-177,r0
+	blt	unflo
+retb:	mov	bsign,r4
+ret.1:	mov	@-sp,r5
+	mov	6,r0
+cko.1:	mov	@r4+,r1
+	mov	r1,@r5+
+	dec	r0
+	bnze	cko.1
+	jmp	ret
+unflo:	mov	@-sp,r5
+	clr	r0
+	mov	r0,@r5+
+	mov	r0,@r5+
+	mov	@dflg,r1
+	tst	r1
+	bze	ret
+	mov	r0,@r5+
+	mov	r0,@r5+
+	jmp	ret
+reta:	mov	asign,r4
+	jmp	ret.1
+
+
+setab:	mov	r5,@sp+
+	mov	r0,r4
+	mov	asign,r5
+	mov	6,r0
+set.1:	mov	@r4+,r3
+	mov	r3,@r5+
+	dec	r0
+	bnze	set.1
+	mov	r1,r4
+	mov	bsign,r5
+	mov	6,r0
+set.2:	mov	@r4+,r3
+	mov	r3,@r5+
+	dec	r0
+	bnze	set.2
+	mov	@-sp,pc
+
+; multiplication routine
+; arg @r1 to @r1
+;
+; entry - jsr r5,call;mulf
+;
+mulf:	mov	r1,@sp+
+	jsr	r5,setab
+	mov	@asign,r0
+	tst	r0
+	bnze	mul.0
+retn0:	clr	r0
+	mov	r0,@bsign
+	b	retb
+mul.0:	mov	@bsign,r1
+	tst	r1
+	bze	retn0
+	mov	@aexp,r0
+	add	@bexp,r0
+	dec	r0
+	mov	r0,@bexp
+	jsr	r5,xorsgn
+	mov	areg+2,r5
+	mov	@dflg,r0
+	tst	r0
+	bze	mul.1
+	add	2,r5
+mul.1:	clr	r0
+	clr	r1
+	clr	r2
+	clr	r3
+	clr	r4
+	mov	r4,@sp+
+mul.2:	mov	r3,r4
+	mov	@-sp,r3
+	sll	1,r3
+	bnze	mul.4
+	inc	r3
+	dec	r5
+mul.4:	xor	r3,r4
+	xor	r4,r3
+	xor	r3,r4
+	cmp	400,r4
+	bneq	mul.3
+	cmp	areg,r5
+	bneq	mul.3
+	mov	breg,r4
+	mov	r0,@r4+
+	mov	r1,@r4+
+	mov	r2,@r4+
+	mov	r3,@r4+
+	mov	bsign,r1
+	jmp	ckovr
+mul.3:	clrc
+	rrc	1,r0
+	rrc	1,r1
+	rrc	1,r2
+	rrc	1,r3
+	mov	r4,@sp+
+	mov	r4,@sp+
+	mov	@r5+,r4
+	dec	r5
+	and	@-sp,r4
+	bze	mul.2
+	mov	r5,@sp+
+	mov	breg,r5
+	add	@r5+,r0
+	clr	r4
+	add	@r5+,r1
+	adc	r4
+	mov	r4,@sp+
+	clr	r4
+	add	@r5+,r2
+	adc	r4
+	mov	r4,@sp+
+	add	@r5+,r3
+	adc	r2
+	mov	@-sp,r4
+	adc	r4
+	add	r4,r1
+	mov	@-sp,r4
+	adc	r4
+	add	r4,r0
+	mov	@-sp,r5
+	b	mul.2
+xorsgn:	cmp	r0,r1
+	beq	xor.1
+	mov	-1,r0
+	b	xor.2
+xor.1:	mov	1,r0
+xor.2:	mov	r0,@bsign
+	mov	r5,pc
+
+divf:	mov	r1,@sp+
+	jsr	r5,setab
+	mov	@asign,r0
+	tst	r0
+	bze	ovflo
+	mov	@bsign,r1
+	jsr	r5,xorsgn
+	mov	@bexp,r0
+	sub	@aexp,r0
+	mov	r0,@bexp
+	mov	breg,r3
+	clr	r4
+	mov	@r3,r0
+	mov	r4,@r3
+	inc	r3
+	mov	@r3,r1
+	mov	r4,@r3
+	inc	r3
+	mov	@r3,r2
+	mov	r4,@r3
+	inc	r3
+	mov	r3,r5
+	mov	@r3,r3
+	mov	r4,@r5+
+	mov	400,r4
+	mov	r4,@mask
+	mov	breg,r5
+div.1:	mov	areg,r4
+	cmp	@r4+,r0
+	bgt	div.2
+	blt	div.3
+	cmp	@r4+,r1
+	beq	div.4
+	blge	div.2
+	bllt	div.3
+div.4:	cmp	@r4+,r2
+	beq	div.5
+	blge	div.2
+	bllt	div.3
+div.5:	cmp	@r4+,r3
+	blge	div.2
+	bllt	div.3
+div.2:	mov	r5,@sp+
+	mov	areg,r4
+	sub	@r4+,r0
+	clr	r5
+	sub	@r4+,r1
+	bc	div.7
+	inc	r5
+div.7:	mov	r5,@sp+
+	clr	r5
+	sub	@r4+,r2
+	bc	div.8
+	inc	r5
+div.8:	mov	r5,@sp+
+	clr	r5
+	sub	@r4+,r3
+	bc	div.9
+	inc	r5
+div.9:	sub	r5,r2
+	mov	@-sp,r5
+	bc	div.10
+	inc	r5
+div.10:	sub	r5,r1
+	mov	@-sp,r5
+	bc	div.11
+	inc	r5
+div.11:	sub	r5,r0
+	mov	@-sp,r5
+	mov	r0,@sp+
+	mov	@r5+,r0
+	dec	r5
+	add	@mask,r0
+	mov	r0,@r5+
+	dec	r5
+	mov	@-sp,r0
+div.3:	sllc	1,r3
+	rlc	1,r2
+	rlc	1,r1
+	rlc	1,r0
+	mov	r0,@sp+
+	mov	@mask,r0
+	clrc
+	rrc	1,r0
+	bnze	div.12
+	mov	100000,r0
+	inc	r5
+	cmp	breg+4,r5
+	bllt	div.12
+	mov	@-sp,r0
+	mov	bsign,r1
+	b	ckovr
+div.12:	mov	r0,@mask
+	mov	@-sp,r0
+	b	div.1
+
+; compare @r0 with @r1
+; if @r0 = @r1 set zero bit
+; if @r0 > @r1 set n bit
+;
+; entry - jsr r5,call; cmpf
+;
+cmpf:	mov	r0,r4
+	mov	r1,r5
+	clr	r2
+	mov	@r4+,r0
+	cmp	@r5+,r0		; sign
+	bgt	cmp.4		; @r4 > @r5
+	blt	cmp.5		; @r4 < @r5
+	tst	r0
+	bze	cmp.2		; both zero
+	mov	r4,r1
+	mov	4,r3
+	add	r3,r1
+	mov	@r1,r0		; get exp0
+	mov	r5,r1
+	add	r3,r1
+	cmp	@r1,r0		; cmp exp1
+	bgt	cmp.4		; @r4 > @r5
+	blt	cmp.5		; @r4 < @r5
+cmp.1:	mov	@r4+,r1
+	cmp	@r5+,r1
+	beq	cmp.3
+	blge	cmp.4
+	bllt	cmp.5
+cmp.3:	dec	r3
+	bnze	cmp.1
+cmp.2:	tst	r2
+	jmp	ret
+cmp.4:	dec	r2
+	b	cmp.2
+cmp.5:	inc	r2
+	b	cmp.2
+
+; copy internal format @r0 to @r1
+;
+; entry - jsr r5, call; copyf
+;
+copyf:	mov	r5,r2
+	mov	r0,r4
+	mov	r1,r5
+	mov	6,r0
+cop.1:	mov	@r4+,r1
+	mov	r1,@r5+
+	dec	r0
+	bnze	cop.1
+	mov	r2,r5
+	jmp	ret
+
+mask:	0
+dflg:	0
+lflg:	0
+asign:	0
+areg:	0
+	0
+	0
+	0
+aexp:	0
+bsign:	0
+breg:	0
+	0
+	0
+	0
+bexp:	0

@@ -1,0 +1,150 @@
+.	=	150000
+.incld	defs.16
+;
+;	The game of MOO - CP1600 version
+;
+start:	mov	2000,r4
+	clr	r0
+st.1:	add	@r4+,r0
+	cmp	4000,r4
+	blt	st.1
+	jsr	r5,call
+	srand
+newg:	mov	newmes,r0
+	jsr	r5,call
+	puts
+	jsr	r5,call
+	select
+	clr	r1
+in:	jsr	r5,call
+	input
+	jsr	r5,call
+	bulsht
+	inc	r1
+	mov	@bulls,r0
+	cmp	4,r0
+	beq	moo
+	jsr	r5,call
+	putd
+	mov	bulmes,r0
+	jsr	r5,call
+	puts
+	mov	@cows,r0
+	jsr	r5,call
+	putd
+	mov	cowmes,r0
+	jsr	r5,call
+	puts
+	b	in
+moo:	mov	moomes,r0
+	jsr	r5,call
+	puts
+	mov	r1,r0
+	jsr	r5,call
+	putd
+	mov	guemes,r0
+	jsr	r5,call
+	puts
+	b	newg
+
+select:	clr	r1
+	mov	secret,r4
+se.lo:	jsr	r5,call
+	rand
+	mov	r0,r1
+	clr	r0
+	mov	12,r2
+	jsr	r5,call
+	div
+	mov	secret,r5
+se.ch:	cmp	r5,r4
+	beq	se.ok
+	cmp	@r5+,r0
+	beq	se.lo
+	b	se.ch
+se.ok:	mov	r0,@r4+
+	cmp	secret+4,r4
+	bneq	se.lo
+	jmp	ret
+
+input:	mov	ibuf,r4
+	mov	promes,r0
+	jsr	r5,call
+	puts
+in.lo:	jsr	r5,call
+	getchr
+	cmp	ibuf+4,r4
+	beq	in.1
+	sub	'0,r0
+	blt	in.go
+	cmp	11,r0
+	bgt	in.go
+	mov	ibuf,r5
+in.2:	cmp	r5,r4
+	beq	in.3
+	cmp	@r5+,r0
+	beq	in.go
+	b	in.2
+in.3:	mov	r0,@r4+
+	b	in.lo
+in.1:	cmp	15,r0
+	bneq	in.go
+	jmp	ret
+in.go:	mov	gormes,r0
+	jsr	r5,call
+	puts
+	b	input
+
+bulsht:	clr	r0
+	clr	r1
+	mov	ibuf,r4
+bu.1:	mov	secret,r5
+	mov	@r4+,r2
+bu.2:	cmp	@r5+,r2
+	bneq	bu.3
+	mov	r4,r3
+	sub	r5,r3
+	cmp	ibuf-secret,r3
+	bneq	bu.4
+	inc	r0
+	b	bu.3
+bu.4:	inc	r1
+bu.3:	cmp	secret+4,r5
+	bneq	bu.2
+	cmp	ibuf+4,r4
+	bneq	bu.1
+	mov	r0,@bulls
+	mov	r1,@cows
+	jmp	ret
+
+newmes:	.ascii	/New game:/
+	.byte	15,12,0
+	.wordb
+moomes:	.ascii	/mooooooo!/
+	.byte	15,12,0
+	.wordb
+gormes:	.byte	15,12
+	.ascii	/Say what?/
+	.byte	15,12,0
+	.wordb
+	.byte	0
+	.wordb
+guemes:	.ascii	/ guesses./
+	.byte	15,12,0
+	.wordb
+promes:	.asciz	/? /
+	.wordb
+nlmes:	.byte	15,12,0
+	.wordb
+bulmes:	.asciz	/ bulls, /
+	.wordb
+cowmes:	.ascii	/ cows./
+	.byte	15,12,0
+	.wordb
+bulls:	0
+cows:	0
+secret:	.word	0,0,0,0
+ibuf:	.word	0,0,0,0
+
+.incld	putd.16
+.incld	rand.16

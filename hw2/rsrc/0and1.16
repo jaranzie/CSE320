@@ -1,0 +1,132 @@
+.incld defs.16
+;
+; alternate writing zeros and ones
+; and check for correct data
+;
+.	=	2200
+
+st.1:	mov	llmes,r0	;lo lim
+	jsr	r5, call
+	puts
+	jsr	r5, call
+	getoct
+	cmp	end,r0	;too low
+	bllt	st.1		;get again
+	mov	r0,@lower
+	mov	hlmes,r0	;hi lim
+	jsr	r5, call
+	puts
+	jsr	r5, call
+	getoct
+	dec	r0
+	cmp	@lower,r0	;l < u?
+	bllt	st.1		;get again
+	inc	r0
+	mov	r0,@higher
+	mov	llmes,r0
+	jsr	r5, call
+	puts
+	mov	@lower,r0
+	jsr	r5, call
+	putoct
+	mov	hlmes,r0
+	jsr	r5, call
+	puts
+	mov	@higher,r0
+	jsr	r5, call
+	putoct
+	mov	nlmes,r0
+	jsr	r5, call
+	puts
+	mov	25252, r0
+test:	mov	@lower, r4
+	mov	@higher, r1
+wloop:	cmp	r4, r1
+	beq	read
+	mov	r0, @r4+
+	b	wloop
+read:	mov	@lower, r4
+	mov	@higher, r1
+rloop:	cmp	r4, r1
+	beq	next
+	mov	@r4+, r2
+	cmp	r2, r0
+	bneq	err
+	b	rloop
+next:	mov	r0, @sp+
+	mov	stames, r0
+	jsr	r5, call
+	puts
+	mov	@-sp, r0
+	com	r0
+	b	test
+err:	mov	r4, r3
+	jsr	r5, call
+	perr
+	b	rloop
+perr:	mov	r0, @sp+
+	mov	admes, r0
+	jsr	r5, call
+	puts
+	mov	r3, r0
+	dec	r0
+	jsr	r5, call
+	putoct
+	mov	gdmes, r0
+	jsr	r5, call
+	puts
+	mov	@-sp, r0
+	jsr	r5, call
+	putoct
+	mov	bdmes, r0
+	jsr	r5, call
+	puts
+	mov	r2, r0
+	jsr	r5, call
+	putoct
+	mov	nlmes, r0
+	jsr	r5, call
+	puts
+	jmp	ret
+getoct:	clr	r1
+go.1:	jsr	r5, call
+	gchr0
+	and	177,r0
+	cmp	15,r0		;newline
+	bneq	go.2
+	jsr	r5, call
+	pchr0
+	mov	12,r0
+	jsr	r5, call
+	pchr0
+	mov	r1,r0
+	jmp	ret0
+go.2:	sll	1,r1
+	sll	2,r1
+	mov	r0,r2
+	jsr	r5, call
+	pchr0
+	sub	60,r2
+	add	r2,r1
+	b	go.1
+
+llmes:	.asciz	/lo lim =/
+	.wordb
+hlmes:	.asciz	/hi lim =/
+	.wordb
+nlmes:	.byte	15,12,0
+	.wordb
+stames:	.asciz	/*/
+	.wordb
+admes:	.asciz	/ad =/
+	.wordb
+gdmes:	.asciz	/gd =/
+	.wordb
+bdmes:	.asciz	/bd =/
+	.wordb
+higher:	0
+lower:	0
+argbuf:	0
+	0
+	0
+end:

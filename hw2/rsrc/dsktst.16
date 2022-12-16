@@ -1,0 +1,84 @@
+.	=	3000
+
+rcall	=	170753
+call	=	170756
+ret4	=	170766
+ret3	=	170774
+ret2	=	171000
+ret1	=	171004
+ret0	=	171010
+ret	=	171013
+mul	=	171442
+newln	=	170732
+putoct	=	171107
+
+;
+; Floppy Disk Test Program
+;
+
+FDCSR	=	177750
+FDTRAK	=	177751
+FDSECT	=	177752
+FDDATA	=	177753
+
+FDREG	=	177766
+
+CLC	=	1
+RESET	=	2
+IEN	=	4
+BUFENB	=	10
+RDWRT	=	20
+DSEL	=	40
+HDLD0	=	100
+HDLD1	=	200
+DRQ	=	400
+IRQ	=	1000
+start:	mov	30, r1
+	com	r1
+	mov	50, r0
+	jsr	r5, call
+	srand
+	mov	HDLD0, r0
+	mov	r0, @FDREG
+rdtrk:	mov	3400, r4
+	mov	345, r0
+	com	r0
+	mov	r0, @FDCSR+4
+	mov	FDREG, r2
+	mov	IRQ, r3
+	mov	DRQ, r5
+rdloop:	mov	@r2, r0
+	mov	r0, r1
+	and	r3, r1
+	bze	pstat
+	and	r5, r0
+	bnze	rdloop
+	mov	@FDDATA, r0
+	mov	r0, @r4+
+	b	rdloop
+pstat:	mov	@FDCSR, r0
+	com	r0
+	jsr	r5, call
+	putoct
+	jsr	r5, call
+	newln
+	b	ret
+loop:	jsr	r5, call
+	rand
+	and	77, r0
+	com	r0
+	mov	r0, @FDDATA+4
+	mov	r1, @FDCSR+4
+wloop:	mov	@FDREG, r0
+	and	IRQ, r0
+	bnze	wloop
+	mov	@FDCSR, r0
+	com	r0
+	and	377, r0
+	jsr	r5, call
+	putoct
+	jsr	r5, call
+	newln
+	b	loop
+
+.incld rand.16

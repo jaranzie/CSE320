@@ -1,0 +1,181 @@
+.	=	3000
+
+ptrvec:	mov	r5, @sp+
+	mov	r0, @sp+
+	gswd	r0
+	mov	r0, @sp+
+	jsr	r5, call
+	pintr
+	tci
+	clrc
+	mov	@-sp, r0
+	rswd	r0
+	mov	@-sp, r0
+	mov	@-sp, r5
+	mov	@-sp, pc
+
+.	=	2200
+
+start:	jsr	r5, call
+	pinit
+	clr	r0
+	mov	r0, @ackflg
+loop:	jsr	r5, call
+	ischr1
+	tst	r0
+	bze	lo.1
+	jsr	r5, call
+	gchr1
+	cmp	12, r0
+	beq	lo.1
+	jsr	r5, call
+	pputc
+lo.1:	mov	@ackflg, r0
+	tst	r0
+	bnze	loop
+	mov	15, r0
+	mov	r0, @ackflg
+	jsr	r5, call
+	pchr1
+	b	loop
+
+ackflg:	0
+
+;
+; Printer Driver Routines - with interrupts
+;
+
+NULL	=	0
+SPACE	=	101
+TAB	=	201
+BACK	=	3
+LF	=	21
+UP	=	11
+DOWN	=	5
+RETURN	=	41
+
+PTRSTAT	=	177760
+PTRDATA	=	177761
+
+RDY	=	1
+IEN	=	200
+ERR	=	2
+EOF	=	4
+EOL	=	10
+
+ctab:	.word	NULL,	NULL,	NULL,	NULL
+	.word	NULL,	NULL,	NULL,	NULL
+	.word	BACK,	TAB,	LF,	NULL
+	.word	NULL,	RETURN,	NULL,	NULL
+	.word	NULL,	NULL,	NULL,	NULL
+	.word	NULL,	NULL,	NULL,	NULL
+	.word	NULL,	NULL,	NULL,	NULL
+	.word	NULL,	NULL,	NULL,	NULL
+	.word	SPACE,	600,	714,	300
+	.word	200,	764,	004,	710
+	.word	740,	770,	744,	404
+	.word	100,	204,	002,	174
+	.word	370,	374,	330,	334
+	.word	350,	354,	320,	324
+	.word	344,	340,	750,	734
+	.word	SPACE,	774,	SPACE,	574
+	.word	104,	074,	030,	034
+	.word	050,	054,	020,	024
+	.word	044,	040,	274,	230
+	.word	234,	250,	254,	210
+	.word	224,	244,	240,	130
+	.word	134,	150,	164,	120
+	.word	124,	144,	140,	SPACE
+	.word	SPACE,	SPACE,	SPACE,	670
+	.word	SPACE,	074,	030,	034
+	.word	050,	054,	020,	024
+	.word	044,	040,	274,	230
+	.word	234,	250,	254,	210
+	.word	224,	244,	240,	130
+	.word	134,	150,	164,	120
+	.word	124,	144,	140,	SPACE
+	.word	040,	SPACE,	SPACE,	NULL
+
+pputc:	and	177, r0
+	add	ctab, r0
+	mov	r0, r1
+	mov	@r1, r0
+	cmp	NULL, r0
+	beq	ret
+	mov	400, r1
+	and	r0, r1
+	mov	377, r2
+	and	r2, r0
+	mov	r0, @sp+
+	mov	@shift, r2
+	cmp	r2, r1
+	beq	pp.1
+	mov	UP, r0
+	tst	r1
+	bneq	pp.2
+	mov	DOWN, r0
+pp.2:	jsr	r5, call
+	rpputc
+	mov	r1, @shift
+pp.1:	mov	@-sp, r0
+	jsr	r5, call
+	rpputc
+	jsr	r5, call
+	pstart
+	jmp	ret
+
+pinit:	mov	RETURN | DOWN, r0
+	jsr	r5, call
+	rpputc
+	clr	r0
+	mov	r0, @shift
+	mov	IEN, r0
+	mov	r0, @PTRSTAT
+	jsr	r5, call
+	pstart
+	jmp	ret
+
+pintr:	mov	pbusy, r2
+	b	ps.2
+
+pstart:	dis
+	mov	pbusy, r2
+	mov	@r2, r0
+	tst	r0
+	bnze	ps.1
+ps.2:	mov	ptrbuf, r1
+	jsr	r5, call
+	size
+	mov	r0, @r2
+	tst	r0
+	bze	ps.1
+	jsr	r5, call
+	getbuf
+	mov	r0, @PTRDATA
+	cmp	RETURN, r0
+	bneq	ps.1
+	clr	r0
+	mov	r0, @ackflg
+ps.1:	eis
+	jmp	ret
+
+shift:	0
+pbusy:	0
+
+rpputc:	dis
+	mov	ptrbuf, r1
+	jsr	r5, call
+	putbuf
+	eis
+	jmp	ret
+
+PBUFSZ	=	132
+
+.	=	3100
+ptrbuf:	ptrbuf+3
+	ptrbuf+3
+	PBUFSZ
+	.blk	PBUFSZ
+
+.incld	buf.16
+.incld	defs.16
